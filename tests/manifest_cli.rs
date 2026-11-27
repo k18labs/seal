@@ -622,6 +622,20 @@ fn compares_manifests_with_sorted_added_removed_and_changed_paths() {
     assert_eq!(value["removed"], serde_json::json!(["a.txt"]));
     assert_eq!(value["changed"], serde_json::json!(["b.txt"]));
     assert_eq!(value["verifies_files_on_disk"], false);
+
+    let identical = run(&[
+        "manifest",
+        "compare",
+        left_manifest.to_str().unwrap(),
+        left_manifest.to_str().unwrap(),
+        "--json",
+    ]);
+    assert!(identical.status.success(), "{}", stderr(&identical));
+    let value: serde_json::Value = serde_json::from_slice(&identical.stdout).unwrap();
+    assert_eq!(value["identical"], true);
+    assert_eq!(value["added"], serde_json::json!([]));
+    assert_eq!(value["removed"], serde_json::json!([]));
+    assert_eq!(value["changed"], serde_json::json!([]));
     remove_all([&left_root, &right_root, &left_manifest, &right_manifest]);
 }
 
@@ -647,6 +661,93 @@ fn inspect_rejects_manifest_larger_than_the_documented_limit() {
     assert_eq!(inspected.status.code(), Some(4));
     assert!(stderr(&inspected).contains("16 MiB"));
     remove_all([&manifest]);
+}
+
+#[test]
+fn create_progress_is_written_to_stderr_and_keeps_json_stdout_valid() {
+    let root = unique_path("progress-create-root");
+    let manifest = unique_path("progress-create-manifest");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("note.txt"), b"abc").unwrap();
+    let created = run(&[
+        "manifest",
+        "create",
+        root.to_str().unwrap(),
+        "--output",
+        manifest.to_str().unwrap(),
+        "--progress",
+        "--json",
+    ]);
+    assert!(created.status.success(), "{}", stderr(&created));
+    let value: serde_json::Value = serde_json::from_slice(&created.stdout).unwrap();
+    assert_eq!(value["created"], true);
+    let progress = stderr(&created);
+    assert!(progress.to_ascii_lowercase().contains("progress"));
+    assert!(progress.contains("1"));
+    assert!(progress.contains("3"));
+    remove_all([&root, &manifest]);
+}
+
+#[test]
+fn verify_progress_is_written_to_stderr_and_keeps_json_stdout_valid() {
+    let root = unique_path("progress-verify-root");
+    let manifest = unique_path("progress-verify-manifest");
+    let signature = unique_path("progress-verify-signature");
+    let key = unique_path("progress-verify-key");
+    let public = public_path(&key);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("note.txt"), b"abc").unwrap();
+    assert!(
+        run(&[
+            "manifest",
+            "create",
+            root.to_str().unwrap(),
+            "--output",
+            manifest.to_str().unwrap(),
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        run(&["keygen", "--out", key.to_str().unwrap()])
+            .status
+            .success()
+    );
+    assert!(
+        run(&[
+            "manifest",
+            "sign",
+            manifest.to_str().unwrap(),
+            "--key",
+            key.to_str().unwrap(),
+            "--output",
+            signature.to_str().unwrap(),
+        ])
+        .status
+        .success()
+    );
+
+    let verified = run(&[
+        "manifest",
+        "verify",
+        manifest.to_str().unwrap(),
+        "--root",
+        root.to_str().unwrap(),
+        "--signature",
+        signature.to_str().unwrap(),
+        "--public-key",
+        public.to_str().unwrap(),
+        "--progress",
+        "--json",
+    ]);
+    assert!(verified.status.success(), "{}", stderr(&verified));
+    let value: serde_json::Value = serde_json::from_slice(&verified.stdout).unwrap();
+    assert_eq!(value["verified"], true);
+    let progress = stderr(&verified);
+    assert!(progress.to_ascii_lowercase().contains("progress"));
+    assert!(progress.contains("1"));
+    assert!(progress.contains("3"));
+    remove_all([&root, &manifest, &signature, &key, &public]);
 }
 
 fn run(args: &[&str]) -> std::process::Output {

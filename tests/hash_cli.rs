@@ -36,10 +36,35 @@ fn json_output_is_machine_readable() {
     assert!(output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["algorithm"], "sha256");
+    assert_eq!(value["schema_version"], 1);
     assert_eq!(
         value["digest"],
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
+}
+
+#[test]
+fn completion_scripts_cover_bash_zsh_fish_and_powershell_command_tree() {
+    for shell in ["bash", "zsh", "fish", "powershell"] {
+        let output =
+            common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args(["completions", shell]));
+        assert!(
+            output.status.success(),
+            "{shell} completion failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let script = String::from_utf8(output.stdout).unwrap();
+        assert!(
+            script.contains("seal"),
+            "{shell} completion has no command name"
+        );
+        for command in ["hash", "manifest", "verify"] {
+            assert!(
+                script.contains(command),
+                "{shell} completion is missing {command}"
+            );
+        }
+    }
 }
 
 #[test]
