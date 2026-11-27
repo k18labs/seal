@@ -581,6 +581,13 @@ fn inspects_canonical_manifest_as_versioned_json() {
         value["entries"][0]["digest"],
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
+    let human_first = run(&["manifest", "inspect", manifest.to_str().unwrap()]);
+    let human_second = run(&["manifest", "inspect", manifest.to_str().unwrap()]);
+    assert!(human_first.status.success(), "{}", stderr(&human_first));
+    assert_eq!(human_first.stdout, human_second.stdout);
+    let human = String::from_utf8(human_first.stdout).unwrap();
+    assert!(human.contains("NOTE: This inspects manifest data"));
+    assert!(human.contains("3\tba7816bf8f01cfea\t"));
     remove_all([&root, &manifest]);
 }
 

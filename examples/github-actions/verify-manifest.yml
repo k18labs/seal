@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  attestations: read
 jobs:
   verify:
     runs-on: ubuntu-24.04
@@ -16,6 +17,12 @@ jobs:
       - name: Build Seal from reviewed source
         working-directory: seal-src
         run: cargo build --release --locked
+      - name: Verify archive provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh attestation verify dist/release.tar.gz --repo k18labs/seal
+          --signer-workflow k18labs/seal/.github/workflows/release.yml
       - name: Provision independently trusted public key
         env:
           SEAL_PUBLIC_KEY: ${{ secrets.SEAL_TRUSTED_PUBLIC_KEY }}

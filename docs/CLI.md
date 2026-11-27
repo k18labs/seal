@@ -22,7 +22,9 @@ Without `--passphrase-file`, key generation prompts twice and signing prompts on
 
 Directory commands are `seal manifest create ROOT --output FILE [--json]`, `seal manifest sign FILE --key PRIVATE_PATH --output SIGNATURE_PATH [--passphrase-file FILE]`, and `seal manifest verify FILE --root ROOT --signature SIGNATURE_PATH --public-key PUBLIC_PATH [--json]`. Verification requires an exact file set and fails on symlinks, reparse points, special objects, unsafe or unrepresentable paths, or files that change while read.
 
-`seal completions bash|zsh|fish|powershell` writes a completion script generated from the current command tree. `manifest create` and `manifest verify` accept `--progress`; progress goes to stderr and JSON remains on stdout. `manifest inspect FILE [--json]` displays a canonical manifest without reading tree files. `manifest compare LEFT RIGHT [--json]` reports added, removed, and changed entries and does not verify files on disk. These commands support JSON schema version 1.
+`seal completions bash|zsh|fish|powershell` writes a completion script generated from the current command tree. `manifest create` and `manifest verify` accept `--progress`; progress goes to stderr and JSON remains on stdout. `manifest inspect FILE [--json]` displays a canonical manifest without reading tree files. `manifest compare LEFT RIGHT [--json]` reports added, removed, and changed entries and does not verify files on disk.
+
+JSON-capable commands are `hash`, `verify`, `manifest create`, `manifest inspect`, `manifest compare`, and `manifest verify`. Each JSON object includes `schema_version: 1`. Verification results include `verified`, structured error details, and an exit status that remains nonzero on failure; `manifest compare` includes `verifies_files_on_disk: false`. Other commands currently emit human-readable output only.
 
 Key generation creates `PRIVATE_PATH` and `PRIVATE_PATH.pub`, and fails rather than overwriting either. File signatures use the format in [SIGNATURE_FORMAT.md](SIGNATURE_FORMAT.md). The public key must come from a separately trusted source.
 

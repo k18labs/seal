@@ -73,11 +73,12 @@ def measure(command, output=None):
             output.unlink(missing_ok=True)
         proc = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         process = psutil.Process(proc.pid)
-        peak = 0
+        peak = None
         start = time.perf_counter()
         while proc.poll() is None:
             try:
-                peak = max(peak, process.memory_info().rss)
+                resident = process.memory_info().rss
+                peak = resident if peak is None else max(peak, resident)
             except psutil.NoSuchProcess:
                 break
             time.sleep(0.01)
@@ -86,9 +87,10 @@ def measure(command, output=None):
             raise subprocess.CalledProcessError(proc.returncode, command)
         if iteration:
             times.append(elapsed)
-            peaks.append(peak // 1024)
+            if peak is not None:
+                peaks.append(peak // 1024)
     ordered = sorted(times)
-    return {"median_seconds": ordered[len(ordered)//2], "min_seconds": ordered[0], "max_seconds": ordered[-1], "peak_rss_kib_max": max(peaks)}
+    return {"median_seconds": ordered[len(ordered)//2], "min_seconds": ordered[0], "max_seconds": ordered[-1], "peak_rss_kib_max": max(peaks) if peaks else None}
 
 results = {}
 for name, command in operations.items():
@@ -110,6 +112,8 @@ metadata = {
     "many_tree_manifest_sha256": hashlib.sha256(many_manifest.read_bytes()).hexdigest(),
     "binary_bytes": pathlib.Path(binary).stat().st_size,
     "timings_and_peak_child_rss": results,
+    "commands": {name: command for name, command in operations.items()},
+    "psutil_version": psutil.__version__,
     "measurement": "warm cache, includes startup; peak RSS sampled every 10 ms and may miss brief peaks",
 }
 pathlib.Path("operation-benchmark.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
