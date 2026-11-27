@@ -13,20 +13,25 @@ toolchain = sys.argv[2] if len(sys.argv) > 2 else "1.96.0"
 exe = "seal.exe" if "windows" in triple else "seal"
 binary = pathlib.Path("target") / triple / "release" / exe
 cargo = ["cargo", f"+{toolchain}"]
-subprocess.run(
-    cargo + ["build", "--release", "--locked", "--target", triple],
-    check=True,
-    stdout=subprocess.DEVNULL,
-)
+
+def build():
+    if "apple-darwin" in triple:
+        # Keep -no_uuid scoped to the final executable. Applying it as a global
+        # rustflag breaks host build-script and proc-macro compilation.
+        command = cargo + [
+            "rustc", "--release", "--locked", "--target", triple,
+            "--bin", "seal", "--", "-C", "link-arg=-Wl,-no_uuid",
+        ]
+    else:
+        command = cargo + ["build", "--release", "--locked", "--target", triple]
+    subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
+
+build()
 with tempfile.TemporaryDirectory(prefix="seal-repro-") as temp:
     first = pathlib.Path(temp) / exe
     shutil.copyfile(binary, first)
     subprocess.run(cargo + ["clean", "--target", triple], check=True, stdout=subprocess.DEVNULL)
-    subprocess.run(
-        cargo + ["build", "--release", "--locked", "--target", triple],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
+    build()
     first_bytes = first.read_bytes()
     second_bytes = binary.read_bytes()
     first_hash = hashlib.sha256(first_bytes).hexdigest()
