@@ -33,7 +33,7 @@ To build without optional BLAKE3 support, use `cargo build --no-default-features
 
 ## Project status
 
-File hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The bounded fuzz smoke, six-target reproducibility comparison, release-candidate builds, SBOM/provenance verification, and comparative benchmarks have run successfully. Regression coverage now includes concurrent file replacement with symlink swaps, prompt-confirmation mismatch, and partial-write rollback; the latest six-target CI run is validating these additions. A qualified external format/security review remains before a version-aligned release-candidate tag. See [ROADMAP.md](ROADMAP.md). This tool is not an antivirus and does not determine whether a file is safe to run.
+File hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The bounded fuzz smoke, six-target reproducibility comparison, release-candidate builds, SBOM/provenance verification, and comparative benchmarks have run successfully. Regression coverage now includes concurrent file replacement with symlink swaps, prompt-confirmation mismatch, and partial-write rollback; all six CI targets pass. A qualified external format/security review remains before a version-aligned release-candidate tag. See [ROADMAP.md](ROADMAP.md). This tool is not an antivirus and does not determine whether a file is safe to run.
 
 ## License
 
