@@ -54,19 +54,37 @@ impl std::error::Error for HashError {}
 
 /// Hash a regular file using a fixed-size buffer and return lowercase hexadecimal.
 pub fn hash_file(path: impl AsRef<Path>, algorithm: Algorithm) -> Result<String, HashError> {
+    hash_file_with_size(path, algorithm).map(|(digest, _)| digest)
+}
+
+/// Hash a regular file and count bytes from the same opened stream.
+pub fn hash_file_with_size(
+    path: impl AsRef<Path>,
+    algorithm: Algorithm,
+) -> Result<(String, u64), HashError> {
     let path = path.as_ref();
-    let metadata = std::fs::metadata(path).map_err(HashError::Io)?;
-    if !metadata.is_file() {
+    if !std::fs::metadata(path).map_err(HashError::Io)?.is_file() {
         return Err(HashError::UnsupportedType);
     }
     let mut file = File::open(path).map_err(HashError::Io)?;
-    hash_reader(&mut file, algorithm)
+    if !file.metadata().map_err(HashError::Io)?.is_file() {
+        return Err(HashError::UnsupportedType);
+    }
+    hash_reader_with_size(&mut file, algorithm)
 }
 
 /// Hash any reader with bounded memory. The caller is responsible for choosing
 /// an appropriate source; this function does not infer filesystem object type.
 pub fn hash_reader(reader: &mut impl Read, algorithm: Algorithm) -> Result<String, HashError> {
+    hash_reader_with_size(reader, algorithm).map(|(digest, _)| digest)
+}
+
+pub fn hash_reader_with_size(
+    reader: &mut impl Read,
+    algorithm: Algorithm,
+) -> Result<(String, u64), HashError> {
     let mut buffer = [0u8; BUFFER_SIZE];
+    let mut size = 0u64;
     match algorithm {
         Algorithm::Sha256 => {
             use sha2::{Digest, Sha256};
@@ -76,9 +94,12 @@ pub fn hash_reader(reader: &mut impl Read, algorithm: Algorithm) -> Result<Strin
                 if count == 0 {
                     break;
                 }
+                size = size
+                    .checked_add(count as u64)
+                    .ok_or_else(|| HashError::Io(io::Error::other("input size overflow")))?;
                 hasher.update(&buffer[..count]);
             }
-            Ok(encode_hex(&hasher.finalize()))
+            Ok((encode_hex(&hasher.finalize()), size))
         }
         Algorithm::Blake3 => {
             #[cfg(feature = "blake3")]
@@ -89,9 +110,12 @@ pub fn hash_reader(reader: &mut impl Read, algorithm: Algorithm) -> Result<Strin
                     if count == 0 {
                         break;
                     }
+                    size = size
+                        .checked_add(count as u64)
+                        .ok_or_else(|| HashError::Io(io::Error::other("input size overflow")))?;
                     hasher.update(&buffer[..count]);
                 }
-                Ok(encode_hex(hasher.finalize().as_bytes()))
+                Ok((encode_hex(hasher.finalize().as_bytes()), size))
             }
             #[cfg(not(feature = "blake3"))]
             {
