@@ -587,7 +587,10 @@ fn write_new_file(path: &Path, bytes: &[u8], private: bool) -> Result<(), Signat
     }
     #[cfg(not(unix))]
     let _ = private;
+    #[cfg(windows)]
     let mut file = options.open(path)?;
+    #[cfg(not(windows))]
+    let file = options.open(path)?;
     #[cfg(windows)]
     if private {
         use windows_permissions::{
