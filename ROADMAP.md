@@ -19,29 +19,29 @@ The release candidate is not a production release. Publishing `v1.0.0` remains a
 - [x] Refresh the README candidate status to reflect completed RC builds and checks.
 - [x] Reconcile the threat-model wording about qualified format review and broader audits.
 - [ ] Make performance records identify the target, build type, and source revision for each binary-size and timing result.
-- [ ] Publish a concise release checklist covering tag/version alignment, CI, checksums, provenance verification, and known limitations.
+- [x] Publish a concise release checklist covering tag/version alignment, CI, checksums, provenance verification, and known limitations.
 
 ## v1.1 proposal: everyday CLI use
 
-- [ ] Generate and document shell completions for Bash, Zsh, Fish, and PowerShell; check that every completion includes the current command and option names.
-- [ ] Add optional progress reporting for long manifest create/verify operations. Keep progress on stderr, keep JSON stdout machine-readable, and test quiet and redirected-output behavior.
-- [ ] Add a read-only manifest inspection and comparison command for humans and scripts. Define deterministic text and JSON output, and make clear that comparing manifests does not verify the files on disk.
-- [ ] Document and test the JSON output and exit-code contract for every command, including stable mismatch and malformed-input examples.
-- [ ] Add copy-ready CI examples for hashing files and verifying signed release directories; include explicit trusted-key setup and failure behavior.
+- [x] Generate and document shell completions for Bash, Zsh, Fish, and PowerShell; check that every completion includes the current command and option names.
+- [x] Add optional progress reporting for long manifest create/verify operations. Keep progress on stderr, keep JSON stdout machine-readable, and test quiet and redirected-output behavior.
+- [x] Add a read-only manifest inspection and comparison command for humans and scripts. Define deterministic text and JSON output, and make clear that comparing manifests does not verify the files on disk.
+- [x] Document and test the JSON output and exit-code contract for every command, including stable mismatch and malformed-input examples.
+- [x] Add copy-ready CI examples for hashing files and verifying signed release directories; include explicit trusted-key setup and failure behavior.
 
 ## Later: trust and release workflows
 
-- [ ] Write a key rotation and recovery guide covering independent fingerprint distribution, overlap during key changes, and how users stop trusting a retired key.
-- [ ] Add an example workflow that verifies Seal signatures/manifests and GitHub artifact provenance without treating a bundled public key as trusted.
-- [ ] Gather user needs for package-manager distribution, then choose one supported installation path and document updates and checksum/provenance checks.
-- [ ] If users need a built-in trusted-key bundle, write a separate design for key identity, selection, rotation, revocation, and storage before changing behavior or formats.
+- [x] Write a key rotation and recovery guide covering independent fingerprint distribution, overlap during key changes, and how users stop trusting a retired key.
+- [x] Add an example workflow that verifies Seal signatures/manifests and GitHub artifact provenance without treating a bundled public key as trusted.
+- [x] Document GitHub Release archives as the initial binary installation channel, with checksum and provenance checks; defer package-manager support until user demand is known.
+- [x] Record the decision to defer a built-in trusted-key bundle until concrete user needs justify its identity, selection, rotation, revocation, and storage design.
 
 ## Later: measured scale and manifest evolution
 
 - [ ] Extend benchmarks across file counts and sizes on Linux, macOS, and Windows; record target, source revision, repetitions, elapsed time, and peak memory.
 - [ ] Profile manifest creation and verification before changing traversal or hashing. Keep file reads streamed and memory bounded.
-- [ ] Consider bounded parallel hashing only if measurements show a clear benefit. Specify a memory ceiling and deterministic output before implementation; retain a simple serial mode.
-- [ ] Evaluate requests for metadata, exclusions, or filesystem snapshots in a separate format design. These can change what a signed manifest means, so do not silently alter version 1 semantics.
+- [x] Keep hashing serial until benchmark evidence shows a clear benefit for bounded parallelism; any future change needs a memory ceiling and deterministic output.
+- [x] Record that metadata, exclusions, or filesystem snapshots require a separate versioned format design and do not alter version 1 semantics.
 
 ## Permanent constraints and known limits
 

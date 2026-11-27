@@ -29,7 +29,7 @@ seal version
 
 Hashing uses a fixed 64 KiB buffer. Key generation prompts twice for a passphrase; signing prompts once. Use `--passphrase-file FILE` only with a controlled automation secret. JSON output is one object on stdout; errors go to stderr. SHA-256 is the default. An unsigned digest proves integrity only when its expected value comes from a trusted channel. A valid signature does not establish trust unless the supplied public key was obtained through a trusted channel. See [key management](docs/KEY_MANAGEMENT.md), [manifest format](docs/MANIFEST_FORMAT.md), and [signature format](docs/SIGNATURE_FORMAT.md).
 
-To build without optional BLAKE3 support, use `cargo build --no-default-features --locked`. See [CI integration examples](docs/INTEGRATION.md) for copy-ready hash and trusted manifest workflows.
+To build without optional BLAKE3 support, use `cargo build --no-default-features --locked`. See [installation guidance](docs/INSTALLATION.md) and [CI integration examples](docs/INTEGRATION.md) for archive verification and copy-ready hash and trusted manifest workflows.
 
 ## Project status
 
