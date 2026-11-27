@@ -71,7 +71,7 @@ fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
         os::unix::fs::symlink,
         sync::{Arc, atomic::AtomicBool},
         thread,
-        time::{Duration, Instant},
+        time::Duration,
     };
 
     let root = unique_path("race-root");
