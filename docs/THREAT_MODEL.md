@@ -21,7 +21,7 @@ This document covers file hashing, detached file signatures, encrypted private-k
 | Very large file causes memory exhaustion | Fixed 64 KiB buffer | Streaming API; other process and library overhead is not capped |
 | Malicious path injects terminal controls | Human output escapes control characters; JSON uses a serializer | Unit test; path display is lossy for non-Unicode paths |
 | Digest algorithm confusion | Closed set of supported algorithm strings; SHA-256 default | Unsupported values are rejected; signature algorithm/version fields are checked before verification |
-| Signature or signed metadata tampering | Strict versioned Seal record and SSHSIG namespace; signed message binds object version, file digest, and size | Unit and integration tests; format has not had independent review |
+| Signature or signed metadata tampering | Strict versioned Seal record and SSHSIG namespace; signed message binds object version, file digest, and size | Unit and integration tests; qualified external format review completed with no blocking findings reported by the maintainer; report not included here |
 | Public-key substitution | Verification requires an explicit key and compares it with the SSHSIG key | Wrong-key integration test; users still need an independently authenticated key fingerprint |
 | Private-key overwrite | `create_new` for private and public key output | Integration test; directory replacement races remain an OS/filesystem concern |
 | Private-key theft from disk | Argon2id plus XChaCha20-Poly1305; Unix mode `0600`; protected Windows DACL set before bytes are written | Wrong-passphrase/tamper tests; weak passphrases, compromised account/admin, backups, and memory inspection remain risks |

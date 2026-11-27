@@ -15,4 +15,4 @@ Trust is separate from mathematical validity: verification requires an explicitl
 
 ## Consequences
 
-The inner signature follows SSHSIG, but the Seal record and fixed messages are format-specific and need independent review. OpenSSH encrypted-key support is disabled. Seal stores encrypted OpenSSH private-key text in a separate versioned Argon2id/XChaCha20-Poly1305 container; see ADR 0003. Unix creation mode is restrictive, and Windows applies and verifies a protected DACL before writing key ciphertext.
+The inner signature follows SSHSIG, but the Seal record and fixed messages are format-specific. The maintainer reports that qualified external format review found no blocking findings; the report is not included in this repository. OpenSSH encrypted-key support is disabled. Seal stores encrypted OpenSSH private-key text in a separate versioned Argon2id/XChaCha20-Poly1305 container; see ADR 0003. Unix creation mode is restrictive, and Windows applies and verifies a protected DACL before writing key ciphertext.

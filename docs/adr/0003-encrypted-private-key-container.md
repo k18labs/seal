@@ -1,6 +1,6 @@
 # ADR 0003: Encrypted private-key container
 
-- **Status:** Implemented for the v1 candidate; independent review required
+- **Status:** Implemented for the 1.0.0 release candidate; qualified external review completed with no blocking findings reported by the maintainer
 - **Date:** 2026-11-26
 
 ## Context
@@ -15,4 +15,4 @@ On Unix, create with mode `0600`. On Windows, create with no sharing, apply a pr
 
 ## Consequences
 
-The format is small and uses established primitives, but its container layout and KDF policy are Seal-specific. It needs independent review before claiming a stable v1 format. Passphrase strength remains the user's responsibility. Sensitive buffers are zeroized where available, but key parsing may create copies that first-party code cannot guarantee to erase. The passphrase-file option places responsibility for protecting and removing that file on automation users.
+The format is small and uses established primitives, but its container layout and KDF policy are Seal-specific. The maintainer reports qualified external review found no blocking findings; the report is not included in this repository. Passphrase strength remains the user's responsibility. Sensitive buffers are zeroized where available, but key parsing may create copies that first-party code cannot guarantee to erase. The passphrase-file option places responsibility for protecting and removing that file on automation users.

@@ -43,4 +43,4 @@ Exit status 0 means all checks passed. Status 2 means cryptographic signature fa
 
 ## Interoperability
 
-The inner signature is OpenSSH SSHSIG and can be independently decoded with SSHSIG-compatible implementations. The outer Seal record and the Seal message envelope are format-specific. To verify with an independent SSHSIG implementation, reconstruct the exact 60-byte message described above and use namespace `seal-file-v1`. This is not directly equivalent to running `ssh-keygen -Y verify` over the original artifact. No independent implementation review has been completed.
+The inner signature is OpenSSH SSHSIG and can be independently decoded with SSHSIG-compatible implementations. The outer Seal record and the Seal message envelope are format-specific. To verify with an independent SSHSIG implementation, reconstruct the exact 60-byte message described above and use namespace `seal-file-v1`. This is not directly equivalent to running `ssh-keygen -Y verify` over the original artifact. The maintainer reports that qualified external format review found no blocking findings; the report is not included in this repository.

@@ -65,5 +65,5 @@ Complete the roadmap through v1 so Seal can hash files, protect and use signing 
 - Output files must be outside the scanned root; outputs never receive implicit exclusion rules.
 - Resource ceilings are fixed protocol/implementation limits for v1 to keep parsing and traversal bounded.
 - GitHub provenance is the initial independent bootstrap mechanism; Seal signatures remain an additional artifact-authentication layer.
-- An independent professional format review is not claimed unless a qualified reviewer actually completes one.
+- Qualified external format review is reported complete with no blocking findings; the report is not included in the repository. This does not claim a full security audit.
 - A custom key-file envelope is used instead of the age library because the reviewed age implementation warns that its scrypt stanza's AEAD is not robust; explicit fixed Argon2id and XChaCha20-Poly1305 parameters avoid that caveat at the cost of owning a small strict envelope parser and format review.

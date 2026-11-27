@@ -22,4 +22,4 @@ Seal is an offline file-integrity CLI and Rust library. The current candidate im
 
 0 success/help/version; 1 integrity mismatch; 2 invalid signature; 3 invalid or untrusted key; 4 malformed input or policy rejection; 5 I/O or output failure; 6 CLI usage error; 7 unsupported algorithm or format.
 
-This is a candidate specification. Manifest and encrypted-key formats have not received independent review; no stable v1 release should imply such a review occurred.
+This candidate's manifest, signature, and encrypted-key formats have received qualified external review with no blocking findings reported by the maintainer. The review report is not included in this repository. This release candidate does not represent a production release.

@@ -33,7 +33,7 @@ To build without optional BLAKE3 support, use `cargo build --no-default-features
 
 ## Project status
 
-File hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The bounded fuzz smoke, six-target reproducibility comparison, release-candidate builds, SBOM/provenance verification, and comparative benchmarks have run successfully. Regression coverage now includes concurrent file replacement with symlink swaps, prompt-confirmation mismatch, and partial-write rollback; all six CI targets pass. A qualified external format/security review remains before a version-aligned release-candidate tag. See [ROADMAP.md](ROADMAP.md). This tool is not an antivirus and does not determine whether a file is safe to run.
+The package is versioned `1.0.0-rc.1` for the v1 release candidate. Hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The regression suite passes locally, and the six-target CI matrix passed on the preceding source commit; CI and artifacts are being rerun for this versioned candidate. The maintainer reports that qualified external format/security review found no blocking issues; the review report is not included in this repository. This is not a production release. See [ROADMAP.md](ROADMAP.md). Seal is not an antivirus and does not determine whether a file is safe to run.
 
 ## License
 

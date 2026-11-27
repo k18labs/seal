@@ -1,13 +1,10 @@
 # Changelog
 
-## 0.1.1
-
-- Add Ed25519 key generation, fingerprint inspection, file signing, and explicit-key verification using a versioned Seal record with OpenSSH SSHSIG.
-- Add stable verification result codes and JSON verification output.
-- Pin `ssh-key` 0.6.7 with only the required SSHSIG, Ed25519, OS-randomness, and standard-library features.
-
 ## Unreleased
 
+## 1.0.0-rc.1 - 2026-11-27
+
+- Bump the package version to `1.0.0-rc.1` for the v1 release candidate.
 - Add deterministic, bounded directory manifests with strict parsing and exact-tree verification.
 - Add domain-separated manifest signatures and machine-readable verification results.
 - Encrypt generated private keys with Argon2id and XChaCha20-Poly1305; apply Unix `0600` and verified protected Windows DACLs.
@@ -16,4 +13,12 @@
 - Add stdin hashing, fuzz targets, six-target CI/release workflows, manual benchmark and reproducibility workflows, checksums, SBOM generation, and provenance attestation.
 - Raise the declared MSRV to Rust 1.87 to use a fixed `ctutils` release addressing a constant-time advisory.
 - Add regression tests for prompt confirmation mismatch, partial-write rollback, concurrent replacement and symlink swaps, and bound CLI subprocess runtimes.
-- Record remaining cross-platform workflow evidence and independent format/security review requirements in `ROADMAP.md`.
+- Complete qualified external format/security review with no blocking findings reported by the maintainer; the report is not included in this repository.
+- Run the six-target candidate CI and the manual artifact/SBOM/provenance workflow from the version-aligned tag.
+- This is a release candidate only; production `v1.0.0` publication remains separate.
+
+## 0.1.1
+
+- Add Ed25519 key generation, fingerprint inspection, file signing, and explicit-key verification using a versioned Seal record with OpenSSH SSHSIG.
+- Add stable verification result codes and JSON verification output.
+- Pin `ssh-key` 0.6.7 with only the required SSHSIG, Ed25519, OS-randomness, and standard-library features.

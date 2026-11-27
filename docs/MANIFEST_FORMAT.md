@@ -22,4 +22,4 @@ Creation and verification reject symbolic links, Windows reparse points, and non
 
 The manifest signature uses the common outer record defined in [SIGNATURE_FORMAT.md](SIGNATURE_FORMAT.md), with `object manifest`, SSHSIG namespace `seal-manifest-v1`, and the 64-byte signed message `SEAL-MANIFEST-V1\0sha256\0 || uint64_be(manifest_byte_length) || SHA256(manifest_bytes)`. The signature binds the exact canonical bytes. Verification validates canonical form, signature algorithm/namespace and explicit public-key match, then checks the exact tree file set and contents.
 
-Independent format review has not been completed. This text specifies the intended v1 representation; interoperability implementations should be tested against published vectors before relying on it.
+The maintainer reports that qualified external format review found no blocking findings; the report is not included in this repository. Interoperability implementations should still be tested against published vectors before relying on them.
