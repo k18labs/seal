@@ -1,4 +1,10 @@
-use std::{fs, process::Command, time::SystemTime};
+use std::{
+    fs,
+    process::Command,
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[test]
 fn hashes_empty_file_as_sha256() {
@@ -77,9 +83,6 @@ fn large_file_is_hashed_correctly() {
 }
 
 fn unique_path() -> std::path::PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    std::env::temp_dir().join(format!("seal-test-{}-{nanos}", std::process::id()))
+    let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("seal-test-{}-{id}", std::process::id()))
 }
