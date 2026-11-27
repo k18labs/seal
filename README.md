@@ -33,7 +33,7 @@ To build without optional BLAKE3 support, use `cargo build --no-default-features
 
 ## Project status
 
-The package is versioned `1.0.0-rc.1` for the v1 release candidate. Hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The regression suite passes locally, and the six-target CI matrix passed on the preceding source commit; CI and artifacts are being rerun for this versioned candidate. The maintainer reports that qualified external format/security review found no blocking issues; the review report is not included in this repository. This is not a production release. See [ROADMAP.md](ROADMAP.md). Seal is not an antivirus and does not determine whether a file is safe to run.
+The package is versioned `1.0.0-rc.1` for the v1 release candidate. Hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The regression suite and six-target CI matrix pass. The RC artifact workflow produced six platform archives and an SBOM; all seven attestations verified, and all six archive checksums matched. The maintainer reports that qualified external format/security review found no blocking issues; the review report is not included in this repository. This is not a production release. See [ROADMAP.md](ROADMAP.md). Seal is not an antivirus and does not determine whether a file is safe to run.
 
 ## License
 

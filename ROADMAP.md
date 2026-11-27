@@ -1,18 +1,53 @@
 # Roadmap
 
-- **M0 Foundation:** single Rust crate, library/CLI split, baseline docs, pinned toolchain, cross-platform CI. Implemented.
-- **M1 File integrity:** streaming SHA-256 and optional BLAKE3, human and JSON output. Implemented and covered by unit/integration tests.
-- **M2 Signatures:** Ed25519 key generation, OpenSSH key encoding, detached versioned signatures, explicit trusted public key, encrypted private-key storage, file sign/verify, stable trust results. Implemented; qualified external format/security review completed with no blocking findings reported by the maintainer.
-- **M3 Manifests:** deterministic versioned manifest, strict parser and limits, safe traversal, signed manifest verification, unexpected/missing file detection. Implemented; all six CI targets pass with the regression suite.
-- **M4 Hardening:** fuzzing, platform race analysis, dependency review, reproducibility, resource limits, and qualified format review. Complete for this candidate; bounded fuzz smoke, six-target reproducibility checks, CI, race regressions, and external review all have passing evidence. Review report is not included in this repository.
-- **M5 Release candidate:** cross-platform builds, SBOM/provenance, bootstrap trust, measured performance and known limitations. Tag `v1.0.0-rc.1` and its manual artifact workflow completed; all six archives and the SBOM passed GitHub attestation verification, and all six archive SHA-256 files matched. Production `v1.0.0` publication remains a separate maintainer decision.
+This roadmap tracks proposed work after the `v1.0.0-rc.1` candidate. Items are ordered by user value and risk, not by dates. The core remains an offline-first, single-crate Rust utility; format or trust-policy changes need their own design and review before implementation.
 
-The maintainer reports the qualified external review found no blocking findings; its report is not included in this repository.
+## Completed through the v1 release candidate
 
-## Remaining before production v1
+- **M0 Foundation:** single Rust crate, library/CLI split, baseline docs, pinned toolchain, and cross-platform CI.
+- **M1 File integrity:** streaming SHA-256 and optional BLAKE3, human and JSON output.
+- **M2 Signatures:** Ed25519 key generation, OpenSSH key encoding, detached versioned signatures, explicit trusted public key, encrypted private-key storage, file sign/verify, and stable trust results. The maintainer reports qualified external format/security review found no blocking findings; its report is not included here.
+- **M3 Manifests:** deterministic versioned manifests, strict parsing and limits, safe traversal, signed manifest verification, and unexpected/missing file detection.
+- **M4 Hardening:** fuzz smoke runs, platform race regressions, dependency review, resource limits, reproducibility checks, and qualified format review. The review report is not included here.
+- **M5 Release candidate:** six platform builds, SBOM, provenance attestations, bootstrap guidance, measured performance, and documented limitations. Tag `v1.0.0-rc.1` and its artifact workflow completed; all six archives and the SBOM passed GitHub attestation verification, and all six archive SHA-256 files matched.
 
-- Final production `v1.0.0` publication remains a separate maintainer decision; this release candidate is not a production release.
+The release candidate is not a production release. Publishing `v1.0.0` remains a separate maintainer decision.
 
-The verifier does not provide an atomic filesystem snapshot. Directory inputs must remain quiescent for meaningful verification.
+## Next: release and documentation accuracy
 
-No production release is represented as complete by this roadmap.
+- [ ] Decide whether and when to publish production `v1.0.0`; first confirm the release contents, supported targets, and public verification instructions.
+- [x] Refresh the README candidate status to reflect completed RC builds and checks.
+- [x] Reconcile the threat-model wording about qualified format review and broader audits.
+- [ ] Make performance records identify the target, build type, and source revision for each binary-size and timing result.
+- [ ] Publish a concise release checklist covering tag/version alignment, CI, checksums, provenance verification, and known limitations.
+
+## v1.1 proposal: everyday CLI use
+
+- [ ] Generate and document shell completions for Bash, Zsh, Fish, and PowerShell; check that every completion includes the current command and option names.
+- [ ] Add optional progress reporting for long manifest create/verify operations. Keep progress on stderr, keep JSON stdout machine-readable, and test quiet and redirected-output behavior.
+- [ ] Add a read-only manifest inspection and comparison command for humans and scripts. Define deterministic text and JSON output, and make clear that comparing manifests does not verify the files on disk.
+- [ ] Document and test the JSON output and exit-code contract for every command, including stable mismatch and malformed-input examples.
+- [ ] Add copy-ready CI examples for hashing files and verifying signed release directories; include explicit trusted-key setup and failure behavior.
+
+## Later: trust and release workflows
+
+- [ ] Write a key rotation and recovery guide covering independent fingerprint distribution, overlap during key changes, and how users stop trusting a retired key.
+- [ ] Add an example workflow that verifies Seal signatures/manifests and GitHub artifact provenance without treating a bundled public key as trusted.
+- [ ] Gather user needs for package-manager distribution, then choose one supported installation path and document updates and checksum/provenance checks.
+- [ ] If users need a built-in trusted-key bundle, write a separate design for key identity, selection, rotation, revocation, and storage before changing behavior or formats.
+
+## Later: measured scale and manifest evolution
+
+- [ ] Extend benchmarks across file counts and sizes on Linux, macOS, and Windows; record target, source revision, repetitions, elapsed time, and peak memory.
+- [ ] Profile manifest creation and verification before changing traversal or hashing. Keep file reads streamed and memory bounded.
+- [ ] Consider bounded parallel hashing only if measurements show a clear benefit. Specify a memory ceiling and deterministic output before implementation; retain a simple serial mode.
+- [ ] Evaluate requests for metadata, exclusions, or filesystem snapshots in a separate format design. These can change what a signed manifest means, so do not silently alter version 1 semantics.
+
+## Permanent constraints and known limits
+
+- Keep cryptography in established libraries; do not implement primitives.
+- Keep formats strict and versioned, and reject unknown identifiers.
+- Require explicit trusted public keys. Provenance authenticates build context, not software safety or publisher intent.
+- Keep file processing streamed and bounded in memory.
+- Directory verification does not provide an atomic filesystem snapshot. Inputs must remain quiescent for meaningful verification.
+- The qualified external review report is not included in this repository; this is not a claim of a full independent implementation or dependency audit.

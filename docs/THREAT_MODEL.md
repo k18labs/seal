@@ -31,4 +31,4 @@ This document covers file hashing, detached file signatures, encrypted private-k
 | Digest is substituted | Not mitigated by an unsigned hash | Obtain expected digest over an independent trusted channel |
 | Dependency compromise | Locked dependency resolution and CI checks | No independent audit or reproducible-build proof yet |
 
-Seal cannot establish software safety, publisher identity, freshness, or protection from a compromised machine or source of expected digest. No independent format or implementation audit has been completed.
+Seal cannot establish software safety, publisher identity, freshness, or protection from a compromised machine or source of expected digest. The maintainer reports that qualified external format/security review found no blocking findings, but the report is not included here. This does not claim a full independent implementation or dependency audit.
