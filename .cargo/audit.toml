@@ -1,0 +1,5 @@
+[advisories]
+# These crates are optional dependencies of ssh-key and are not part of Seal's
+# enabled feature graph (see docs/DEPENDENCIES.md). Recheck these exceptions if
+# the ssh-key feature selection changes.
+ignore = ["RUSTSEC-2026-0387", "RUSTSEC-2023-0071"]
