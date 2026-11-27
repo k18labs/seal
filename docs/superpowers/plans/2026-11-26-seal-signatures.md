@@ -41,4 +41,4 @@
 
 - [x] Add signing and verification commands, strict detached signature parsing, explicit trusted public key comparison, and stable exit codes.
 - [x] Add integration coverage for valid round-trip, changed bytes, wrong key, signed metadata tampering, and no-overwrite behavior.
-- [ ] Run formatting, locked tests, clippy, cross-platform CI, and record remaining key-permission limitations.
+- [x] Run formatting, locked tests, clippy, and cross-platform CI; document the remaining key-permission limitations in `docs/KEY_MANAGEMENT.md`.
