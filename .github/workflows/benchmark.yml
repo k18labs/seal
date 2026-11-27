@@ -32,11 +32,14 @@ jobs:
         run: cargo +1.96.0 build --release --locked
       - name: Measure warm-cache hash commands
         run: python scripts/bench_hash.py --size-mib "${{ inputs.size_mib }}" --runs "${{ inputs.runs }}"
+      - name: Measure startup, signatures, manifests, RSS, and binary size
+        run: python scripts/bench_operations.py --large-mib "${{ inputs.size_mib }}" --runs "${{ inputs.runs }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: seal-hash-benchmark
           path: |
             hash-bench.json
             benchmark-metadata.json
+            operation-benchmark.json
           if-no-files-found: error
           retention-days: 30
