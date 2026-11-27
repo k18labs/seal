@@ -1,0 +1,26 @@
+name: Verify signed release manifest
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build Seal from reviewed source
+        run: cargo build --release --locked
+      - name: Provision independently trusted public key
+        env:
+          SEAL_PUBLIC_KEY: ${{ secrets.SEAL_TRUSTED_PUBLIC_KEY }}
+          EXPECTED_FINGERPRINT: ${{ vars.SEAL_TRUSTED_FINGERPRINT }}
+        run: |
+          test -n "$SEAL_PUBLIC_KEY"
+          printf '%s\n' "$SEAL_PUBLIC_KEY" > trusted-release.pub
+          actual="$(target/release/seal key fingerprint --public-key trusted-release.pub)"
+          test "$actual" = "$EXPECTED_FINGERPRINT"
+      - name: Verify manifest and exact directory contents
+        run: >-
+          target/release/seal manifest verify release.manifest
+          --root dist --signature release.manifest.seal
+          --public-key trusted-release.pub --json

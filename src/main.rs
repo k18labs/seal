@@ -654,8 +654,10 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                     Err(error) => return Err(signature_error(error)),
                 };
                 let mut last_progress = std::time::Instant::now();
+                let mut final_progress = seal::tree::ScanProgress::default();
                 let verification = if progress {
                     seal::tree::verify_directory_with_progress(&root, &manifest_model, |state| {
+                        final_progress = state;
                         if last_progress.elapsed() >= std::time::Duration::from_millis(500) {
                             eprintln!(
                                 "progress: {} files, {} bytes read",
@@ -668,7 +670,10 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                     seal::tree::verify_directory(&root, &manifest_model)
                 };
                 if progress {
-                    eprintln!("progress complete");
+                    eprintln!(
+                        "progress complete: {} files, {} bytes read",
+                        final_progress.files_seen, final_progress.bytes_read
+                    );
                 }
                 match verification {
                     Ok(report) => {

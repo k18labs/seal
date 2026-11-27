@@ -1,0 +1,14 @@
+name: Hash release artifact
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hash:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build pinned Seal source
+        run: cargo build --release --locked
+      - name: Hash artifact
+        run: target/release/seal hash dist/release.tar.gz --algorithm sha256 --json
