@@ -465,7 +465,12 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                     seal::tree::create_manifest(&root, &output)
                 }
                 .map_err(tree_error)?;
-                if progress {
+                if progress
+                    && matches!(
+                        &verification,
+                        Ok(_) | Err(seal::tree::TreeError::IntegrityMismatch(_))
+                    )
+                {
                     eprintln!(
                         "progress complete: {} files, {} bytes read",
                         manifest.files.len(),

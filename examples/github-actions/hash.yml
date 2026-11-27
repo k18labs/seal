@@ -8,7 +8,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: k18labs/seal
+          ref: b92b8ce88e31ca6722b0370612063bc01176adbf # v1.0.0-rc.1 source commit
+          path: seal-src
       - name: Build pinned Seal source
+        working-directory: seal-src
         run: cargo build --release --locked
       - name: Hash artifact
-        run: target/release/seal hash dist/release.tar.gz --algorithm sha256 --json
+        run: seal-src/target/release/seal hash dist/release.tar.gz --algorithm sha256 --json
