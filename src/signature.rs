@@ -624,8 +624,17 @@ fn write_new_file(path: &Path, bytes: &[u8], private: bool) -> Result<(), Signat
             )));
         }
     }
-    let result = file.write_all(bytes).and_then(|()| file.sync_all());
-    if let Err(error) = result {
+    write_file_with_rollback(path, file, |file| {
+        file.write_all(bytes).and_then(|()| file.sync_all())
+    })
+}
+
+fn write_file_with_rollback(
+    path: &Path,
+    mut file: File,
+    write: impl FnOnce(&mut File) -> io::Result<()>,
+) -> Result<(), SignatureError> {
+    if let Err(error) = write(&mut file) {
         drop(file);
         let _ = fs::remove_file(path);
         return Err(SignatureError::Io(error));
@@ -651,7 +660,18 @@ fn map_hash_error(error: hash::HashError) -> SignatureError {
 
 #[cfg(test)]
 mod tests {
-    use super::{SignatureObject, decode_sha256, parse_signature_record, signed_message};
+    use std::{
+        fs::OpenOptions,
+        io::{self, Write},
+        sync::atomic::{AtomicU64, Ordering},
+    };
+
+    use super::{
+        SignatureObject, decode_sha256, parse_signature_record, signed_message,
+        write_file_with_rollback,
+    };
+
+    static NEXT_ROLLBACK_TEST_ID: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn envelope_is_fixed_and_domain_separated() {
@@ -674,5 +694,27 @@ mod tests {
     #[test]
     fn rejects_unknown_record_version() {
         assert!(parse_signature_record(b"SEAL-SIGNATURE 2\n").is_err());
+    }
+
+    #[test]
+    fn removes_partially_written_file_after_write_failure() {
+        let path = std::env::temp_dir().join(format!(
+            "seal-partial-write-rollback-{}-{}",
+            std::process::id(),
+            NEXT_ROLLBACK_TEST_ID.fetch_add(1, Ordering::Relaxed)
+        ));
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap();
+
+        let result = write_file_with_rollback(&path, file, |file| {
+            file.write_all(b"partial secret bytes")?;
+            Err(io::Error::other("injected write failure"))
+        });
+
+        assert!(result.is_err());
+        assert!(!path.exists(), "partial file remains after write failure");
     }
 }
