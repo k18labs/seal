@@ -15,4 +15,5 @@
 - Stream directory traversal through capability-scoped no-follow handles with file, path, byte, recursion, and entry limits.
 - Add stdin hashing, fuzz targets, six-target CI/release workflows, manual benchmark and reproducibility workflows, checksums, SBOM generation, and provenance attestation.
 - Raise the declared MSRV to Rust 1.87 to use a fixed `ctutils` release addressing a constant-time advisory.
+- Add regression tests for prompt confirmation mismatch, partial-write rollback, concurrent replacement and symlink swaps, and bound CLI subprocess runtimes.
 - Record remaining cross-platform workflow evidence and independent format/security review requirements in `ROADMAP.md`.
