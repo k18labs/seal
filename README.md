@@ -33,7 +33,7 @@ To build without optional BLAKE3 support, use `cargo build --no-default-features
 
 ## Project status
 
-File hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The v1 release checklist remains open for scheduled fuzzing, full six-target release builds, release SBOM/provenance, reproducible builds, comparative benchmarks, remote workflow review, and independent format/security review. See [ROADMAP.md](ROADMAP.md). This tool is not an antivirus and does not determine whether a file is safe to run.
+File hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The six-target CI matrix, bounded fuzz smoke, six-target reproducibility comparison, release-candidate builds, SBOM/provenance verification, and comparative benchmarks have run successfully. Concurrent-mutation stress coverage and a qualified external format/security review remain before a version-aligned release-candidate tag. See [ROADMAP.md](ROADMAP.md). This tool is not an antivirus and does not determine whether a file is safe to run.
 
 ## License
 

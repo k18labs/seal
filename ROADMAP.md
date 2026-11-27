@@ -1,20 +1,17 @@
 # Roadmap
 
-- **M0 Foundation:** single Rust crate, library/CLI split, baseline docs, pinned toolchain, cross-platform CI. Implemented; auditing and release hardening remain.
+- **M0 Foundation:** single Rust crate, library/CLI split, baseline docs, pinned toolchain, cross-platform CI. Implemented; external review remains.
 - **M1 File integrity:** streaming SHA-256 and optional BLAKE3, human and JSON output. Implemented and covered by unit/integration tests.
-- **M2 Signatures:** Ed25519 key generation, OpenSSH key encoding, detached versioned signatures, explicit trusted public key, encrypted private-key storage, file sign/verify, stable trust results. Implemented; independent format/security review remains.
-- **M3 Manifests:** deterministic versioned manifest, strict parser and limits, safe traversal, signed manifest verification, unexpected/missing file detection. Implemented; cross-platform CI evidence and independent review remain.
-- **M4 Hardening:** fuzzing, platform race analysis, dependency review, reproducibility, resource limits, independent format review where available. In progress; see remaining checklist below.
-- **M5 Release candidate:** cross-platform builds, SBOM/provenance, bootstrap trust, measured performance and known limitations. Not yet complete; no production v1 release is authorized by this roadmap.
+- **M2 Signatures:** Ed25519 key generation, OpenSSH key encoding, detached versioned signatures, explicit trusted public key, encrypted private-key storage, file sign/verify, stable trust results. Implemented; qualified external format/security review remains.
+- **M3 Manifests:** deterministic versioned manifest, strict parser and limits, safe traversal, signed manifest verification, unexpected/missing file detection. Implemented; all six remote CI targets pass.
+- **M4 Hardening:** fuzzing, platform race analysis, dependency review, reproducibility, resource limits, independent format review where available. In progress; bounded fuzz smoke and six-target reproducibility checks pass. Concurrent mutation stress tests and external review remain.
+- **M5 Release candidate:** cross-platform builds, SBOM/provenance, bootstrap trust, measured performance and known limitations. Candidate artifacts and SBOM were produced for six targets; provenance was verified locally with `gh attestation verify`; benchmark results are recorded. A production v1 release is not authorized by this roadmap.
 
 ## Remaining before v1
 
-- Confirm the six-target Linux, macOS, and Windows CI matrix passes on the remote GitHub runners.
-- Add scheduled bounded fuzzing and run fuzz smoke tests.
-- Run the manual comparative hash benchmark and extend measurements to signature operations, manifest generation, and peak RSS.
-- Produce release archives, checksums, CycloneDX SBOM, and GitHub provenance attestations; verify provenance from a clean environment.
-- Run the configured six-target clean rebuild comparison and record results.
-- Obtain independent review of manifest, signature, and encrypted-key formats; do not describe this as an audit until one occurs.
-- Inspect all remote CI/security/release workflow results and keep known limitations current.
+- Add unreadable-path and concurrent replacement/mutation stress coverage; the manifest verifier is not an atomic filesystem snapshot.
+- Add prompt-confirmation mismatch and partial-write rollback tests for private-key generation.
+- Obtain qualified external review of manifest, signature, and encrypted-key formats. An internal read-only design review found no confirmed format defect, but it is not a professional audit.
+- Create a version-aligned release-candidate tag after the remaining review and hardening items are resolved; no production v1 tag is created here.
 
-No later milestone is represented as complete by this roadmap.
+No production release is represented as complete by this roadmap.
