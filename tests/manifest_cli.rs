@@ -47,7 +47,7 @@ fn reports_unreadable_file_as_an_operational_failure() {
     fs::create_dir_all(&root).unwrap();
     let file = root.join("private.dat");
     fs::write(&file, b"not readable by the test process").unwrap();
-    fs::set_permissions(&file, fs::Permissions::from_mode(0)).unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o0)).unwrap();
 
     let result = run(&[
         "manifest",

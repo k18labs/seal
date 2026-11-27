@@ -9,7 +9,7 @@
 
 ## Remaining before v1
 
-- Add unreadable-path and concurrent replacement/mutation stress coverage; the manifest verifier is not an atomic filesystem snapshot.
+- Add concurrent replacement/mutation and symlink-swap stress coverage; the manifest verifier is not an atomic filesystem snapshot.
 - Add prompt-confirmation mismatch and partial-write rollback tests for private-key generation.
 - Obtain qualified external review of manifest, signature, and encrypted-key formats. An internal read-only design review found no confirmed format defect, but it is not a professional audit.
 - Create a version-aligned release-candidate tag after the remaining review and hardening items are resolved; no production v1 tag is created here.
