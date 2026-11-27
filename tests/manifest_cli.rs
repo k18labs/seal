@@ -63,6 +63,87 @@ fn reports_unreadable_file_as_an_operational_failure() {
     remove_all([&root, &output_path]);
 }
 
+#[cfg(unix)]
+#[test]
+fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
+    use sha2::Digest;
+    use std::{
+        os::unix::fs::symlink,
+        sync::{Arc, atomic::AtomicBool},
+        thread,
+        time::Duration,
+    };
+
+    let root = unique_path("race-root");
+    let outside_dir = unique_path("race-outside");
+    let output_path = unique_path("race-manifest");
+    fs::create_dir_all(&root).unwrap();
+    fs::create_dir_all(&outside_dir).unwrap();
+    let path = root.join("subject.bin");
+    let outside_path = outside_dir.join("outside.bin");
+    let inside_bytes = vec![b'I'; 2 * 1024 * 1024];
+    let outside_bytes = vec![b'O'; 2 * 1024 * 1024];
+    fs::write(&path, &inside_bytes).unwrap();
+    fs::write(&outside_path, &outside_bytes).unwrap();
+    let outside_digest = format!("{:x}", sha2::Sha256::digest(&outside_bytes));
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let racer_stop = Arc::clone(&stop);
+    let racer_path = path.clone();
+    let racer_target = outside_path.clone();
+    let racer_bytes = inside_bytes.clone();
+    let racer = thread::spawn(move || {
+        while !racer_stop.load(Ordering::Relaxed) {
+            let _ = fs::remove_file(&racer_path);
+            let _ = symlink(&racer_target, &racer_path);
+            thread::sleep(Duration::from_micros(100));
+            let _ = fs::remove_file(&racer_path);
+            let _ = fs::write(&racer_path, &racer_bytes);
+            thread::sleep(Duration::from_micros(100));
+        }
+    });
+
+    let mut outcomes = Vec::new();
+    for attempt in 0..8 {
+        let output = output_path.with_extension(format!("{attempt}.json"));
+        outcomes.push((
+            run(&[
+                "manifest",
+                "create",
+                root.to_str().unwrap(),
+                "--output",
+                output.to_str().unwrap(),
+            ]),
+            output,
+        ));
+    }
+    stop.store(true, Ordering::Relaxed);
+    racer.join().unwrap();
+
+    for (result, output) in outcomes {
+        assert!(
+            result.status.success() || matches!(result.status.code(), Some(4 | 5)),
+            "unexpected exit status {:?}: {}",
+            result.status.code(),
+            stderr(&result)
+        );
+        if result.status.success() {
+            let manifest: serde_json::Value = serde_json::from_slice(&fs::read(&output).unwrap())
+                .expect("successful manifest must be valid JSON");
+            assert!(
+                manifest["files"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|file| { file["digest"].as_str() != Some(outside_digest.as_str()) }),
+                "manifest followed a symlink to content outside its root"
+            );
+        }
+        let _ = fs::remove_file(output);
+    }
+    remove_all([&root, &outside_dir, &output_path]);
+}
+
 #[test]
 fn verifies_empty_directory_and_reports_success_as_json() {
     let root = unique_path("empty-root");

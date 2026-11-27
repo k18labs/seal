@@ -183,6 +183,54 @@ fn removes_private_key_when_public_key_creation_fails() {
     remove_all([&key, &public, &passphrase_file]);
 }
 
+#[cfg(unix)]
+#[test]
+fn mismatched_interactive_passphrase_confirmation_fails_without_writing_keys() {
+    let key = unique_path("mismatched-prompt-key");
+    let public = public_path(&key);
+    let python = r#"
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], [sys.argv[1], 'keygen', '--out', sys.argv[2]])
+transcript = bytearray()
+for prompt, answer in ((b'Passphrase:', b'first valid passphrase\n'),
+                       (b'Confirm passphrase:', b'different valid passphrase\n')):
+    deadline = time.monotonic() + 15
+    while prompt not in transcript:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            os.kill(pid, 9)
+            raise SystemExit('timed out waiting for prompt')
+        ready, _, _ = select.select([fd], [], [], remaining)
+        if not ready:
+            os.kill(pid, 9)
+            raise SystemExit('timed out reading prompt')
+        transcript.extend(os.read(fd, 4096))
+    os.write(fd, answer)
+_, status = os.waitpid(pid, 0)
+os.close(fd)
+if not os.WIFEXITED(status):
+    raise SystemExit('keygen did not exit normally')
+raise SystemExit(os.WEXITSTATUS(status))
+"#;
+
+    let result = Command::new("python3")
+        .args([
+            "-c",
+            python,
+            env!("CARGO_BIN_EXE_seal"),
+            key.to_str().unwrap(),
+        ])
+        .output()
+        .expect("python3 is required for the Unix pseudo-terminal test");
+    assert_eq!(result.status.code(), Some(4));
+    assert!(!key.exists());
+    assert!(!public.exists());
+
+    remove_all([&key, &public]);
+}
+
 fn run(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_seal"))
         .args(args)
