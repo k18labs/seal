@@ -115,7 +115,7 @@ fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
                     "--output",
                     output.to_str().unwrap(),
                 ],
-                Duration::from_secs(20),
+                Duration::from_secs(5),
             ),
             output,
         ));
