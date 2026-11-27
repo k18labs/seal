@@ -566,12 +566,7 @@ fn inspects_canonical_manifest_as_versioned_json() {
     ]);
     assert!(created.status.success(), "{}", stderr(&created));
 
-    let inspected = run(&[
-        "manifest",
-        "inspect",
-        manifest.to_str().unwrap(),
-        "--json",
-    ]);
+    let inspected = run(&["manifest", "inspect", manifest.to_str().unwrap(), "--json"]);
     assert!(inspected.status.success(), "{}", stderr(&inspected));
     assert!(inspected.stderr.is_empty());
     let value: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
@@ -582,7 +577,10 @@ fn inspects_canonical_manifest_as_versioned_json() {
     assert_eq!(value["total_bytes"], 3);
     assert_eq!(value["entries"][0]["path"], "note.txt");
     assert_eq!(value["entries"][0]["size"], 3);
-    assert_eq!(value["entries"][0]["digest"], "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    assert_eq!(
+        value["entries"][0]["digest"],
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
     remove_all([&root, &manifest]);
 }
 
@@ -598,10 +596,7 @@ fn compares_manifests_with_sorted_added_removed_and_changed_paths() {
     fs::write(left_root.join("b.txt"), b"before").unwrap();
     fs::write(right_root.join("b.txt"), b"after").unwrap();
     fs::write(right_root.join("c.txt"), b"new").unwrap();
-    for (root, manifest) in [
-        (&left_root, &left_manifest),
-        (&right_root, &right_manifest),
-    ] {
+    for (root, manifest) in [(&left_root, &left_manifest), (&right_root, &right_manifest)] {
         let created = run(&[
             "manifest",
             "create",
