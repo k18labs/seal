@@ -102,10 +102,10 @@ except (OSError, subprocess.CalledProcessError):
     revision = "unknown"
 metadata = {
     "source_revision": revision,
-    "target": subprocess.check_output(["rustc", "-vV"], text=True).split("host: ")[-1].splitlines()[0],
+    "target": subprocess.check_output(["rustc", "+1.96.0", "-vV"], text=True).split("host: ")[-1].splitlines()[0],
     "build_profile": "release",
     "os": platform.platform(), "machine": platform.machine(), "processor": platform.processor(),
-    "rustc": subprocess.check_output(["rustc", "-Vv"], text=True).strip(),
+    "rustc": subprocess.check_output(["rustc", "+1.96.0", "-Vv"], text=True).strip(),
     "seal_version": subprocess.check_output([binary, "version"], text=True).strip(),
     "runs": args.runs, "warmups": 1, "large_file_mib": args.large_mib,
     "many_small_file_count": args.small_files,
