@@ -185,7 +185,7 @@ fn removes_private_key_when_public_key_creation_fails() {
     remove_all([&key, &public, &passphrase_file]);
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn mismatched_interactive_passphrase_confirmation_fails_without_writing_keys() {
     let key = unique_path("mismatched-prompt-key");
