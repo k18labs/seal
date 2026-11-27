@@ -71,8 +71,8 @@
 
 - [x] Add source revision, target, build profile, and complete run settings to benchmark metadata.
 - [x] Make benchmark measurement portable across Linux, macOS, and Windows, with bounded output and recorded peak memory.
-- [ ] Add a manual Linux/macOS/Windows benchmark matrix and run it; record results only for successful jobs and state remaining platform gaps.
-- [ ] Use measurements to decide whether bounded parallel hashing has evidence of benefit; otherwise record why it remains deferred.
+- [x] Add a manual Linux/macOS/Windows benchmark matrix and run it; record results only for successful jobs and state remaining platform gaps.
+- [x] Use measurements to decide whether bounded parallel hashing has evidence of benefit; otherwise record why it remains deferred.
 
 ### Task 6: Resolve conditional roadmap proposals
 
@@ -87,5 +87,5 @@
 - [x] Run `cargo fmt --all -- --check`.
 - [x] Run `cargo test --locked`.
 - [x] Run `cargo clippy --all-targets --all-features --locked -- -D warnings`.
-- [ ] Review the full diff and confirm no production release/tag was created.
-- [ ] Push the implementation branch and fast-forward both `main` and `master` after checks pass.
+- [x] Review the full diff and confirm no production release/tag was created.
+- [x] Push the implementation branch and fast-forward both `main` and `master` after checks pass.

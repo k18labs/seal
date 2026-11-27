@@ -18,7 +18,7 @@ The release candidate is not a production release. Publishing `v1.0.0` remains a
 - [ ] Decide whether and when to publish production `v1.0.0`; first confirm the release contents, supported targets, and public verification instructions.
 - [x] Refresh the README candidate status to reflect completed RC builds and checks.
 - [x] Reconcile the threat-model wording about qualified format review and broader audits.
-- [ ] Make performance records identify the target, build type, and source revision for each binary-size and timing result.
+- [x] Make performance records identify the target, release build profile, source revision, run settings, and platform for each binary-size and timing result.
 - [x] Publish a concise release checklist covering tag/version alignment, CI, checksums, provenance verification, and known limitations.
 
 ## v1.1 proposal: everyday CLI use
@@ -38,9 +38,9 @@ The release candidate is not a production release. Publishing `v1.0.0` remains a
 
 ## Later: measured scale and manifest evolution
 
-- [ ] Extend benchmarks across file counts and sizes on Linux, macOS, and Windows; record target, source revision, repetitions, elapsed time, and peak memory.
-- [ ] Profile manifest creation and verification before changing traversal or hashing. Keep file reads streamed and memory bounded.
-- [x] Keep hashing serial until benchmark evidence shows a clear benefit for bounded parallelism; any future change needs a memory ceiling and deterministic output.
+- [x] Extend benchmarks across file counts and sizes on Linux, macOS, and Windows; record target, source revision, repetitions, elapsed time, and peak memory.
+- [x] Measure manifest creation and verification before changing traversal or hashing; retain streamed, bounded reads.
+- [x] Keep hashing serial because the baseline does not compare a parallel implementation; consider it only after a comparative benchmark and a bounded-memory design.
 - [x] Record that metadata, exclusions, or filesystem snapshots require a separate versioned format design and do not alter version 1 semantics.
 
 ## Permanent constraints and known limits
