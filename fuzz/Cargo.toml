@@ -1,0 +1,40 @@
+[package]
+name = "seal-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+seal = { path = ".." }
+
+[[bin]]
+name = "manifest"
+path = "fuzz_targets/manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "signature_record"
+path = "fuzz_targets/signature_record.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "public_key"
+path = "fuzz_targets/public_key.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "path"
+path = "fuzz_targets/path.rs"
+test = false
+doc = false
+bench = false

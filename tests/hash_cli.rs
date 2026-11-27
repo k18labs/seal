@@ -41,6 +41,27 @@ fn json_output_is_machine_readable() {
 }
 
 #[test]
+fn hashes_standard_input_with_bounded_reader() {
+    use std::io::Write;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_seal"))
+        .args(["hash", "-", "--json"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"abc").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["path"], "-");
+    assert_eq!(
+        value["digest"],
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+}
+
+#[test]
 fn rejects_directory_input() {
     let output = Command::new(env!("CARGO_BIN_EXE_seal"))
         .args(["hash", "."])

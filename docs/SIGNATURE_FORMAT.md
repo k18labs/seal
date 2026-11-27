@@ -17,6 +17,8 @@ digest <64-lowercase-hex-characters>
 
 There are no additional fields, blank lines, or trailing bytes. The parser rejects unknown version, object, hash, noncanonical size (no leading zero except `0`), uppercase/non-hex digest characters, invalid PEM, and inputs larger than 65,536 bytes. The inner SSHSIG parser rejects unknown versions and Seal requires Ed25519, SSHSIG hash algorithm `sha256`, and namespace `seal-file-v1`.
 
+For manifests, the second line is `object manifest`, the namespace is `seal-manifest-v1`, and the signed message is the 64-byte envelope `SEAL-MANIFEST-V1\0sha256\0 || uint64_be(manifest_length) || SHA256(canonical_manifest_bytes)`. The outer record shape and limits are otherwise identical. See [MANIFEST_FORMAT.md](MANIFEST_FORMAT.md).
+
 ## Signed message
 
 The signed message is exactly the concatenation of:

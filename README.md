@@ -1,6 +1,6 @@
 # Seal
 
-Seal is an offline-first Rust command-line tool for checking file integrity. It provides streaming SHA-256 and optional BLAKE3 hashing, plus Ed25519 file signatures in a versioned Seal record containing an OpenSSH SSHSIG signature. Verification requires an explicitly selected public key. Directory manifests are not implemented yet.
+Seal is an offline-first Rust command-line tool for checking file and directory integrity. It provides streaming SHA-256 and optional BLAKE3 hashing, Ed25519 signatures for files and deterministic directory manifests, and explicit public-key trust selection. Private signing keys are encrypted at rest.
 
 ## Build
 
@@ -21,16 +21,19 @@ seal keygen --out ./keys/release
 seal key fingerprint --public-key ./keys/release.pub
 seal sign artifact.tar.gz --key ./keys/release --output artifact.tar.gz.seal
 seal verify artifact.tar.gz --signature artifact.tar.gz.seal --public-key ./keys/release.pub
+seal manifest create ./dist --output release.manifest
+seal manifest sign release.manifest --key ./keys/release --output release.manifest.seal
+seal manifest verify release.manifest --root ./dist --signature release.manifest.seal --public-key ./keys/release.pub --json
 seal version
 ```
 
-Hashing uses a fixed 64 KiB buffer. JSON output is one object on stdout; errors go to stderr. SHA-256 is the default. An unsigned digest proves integrity only when its expected value comes from a trusted channel. A valid signature does not establish trust unless the supplied public key was obtained through a trusted channel. See [key management](docs/KEY_MANAGEMENT.md) and [signature format](docs/SIGNATURE_FORMAT.md).
+Hashing uses a fixed 64 KiB buffer. Key generation prompts twice for a passphrase; signing prompts once. Use `--passphrase-file FILE` only with a controlled automation secret. JSON output is one object on stdout; errors go to stderr. SHA-256 is the default. An unsigned digest proves integrity only when its expected value comes from a trusted channel. A valid signature does not establish trust unless the supplied public key was obtained through a trusted channel. See [key management](docs/KEY_MANAGEMENT.md), [manifest format](docs/MANIFEST_FORMAT.md), and [signature format](docs/SIGNATURE_FORMAT.md).
 
 To build without optional BLAKE3 support, use `cargo build --no-default-features --locked`.
 
 ## Project status
 
-The foundation and file hashing are in place; file signing and verification are implemented, with remaining key-storage hardening documented in [ROADMAP.md](ROADMAP.md). Directory manifest verification, fuzzing, and an independent security audit have not been completed. This tool is not an antivirus and does not determine whether a file is safe to run.
+File hashing, encrypted-key signing, and strict signed-manifest verification are implemented. The v1 release checklist remains open for scheduled fuzzing, full six-target release builds, release SBOM/provenance, reproducible builds, comparative benchmarks, remote workflow review, and independent format/security review. See [ROADMAP.md](ROADMAP.md). This tool is not an antivirus and does not determine whether a file is safe to run.
 
 ## License
 

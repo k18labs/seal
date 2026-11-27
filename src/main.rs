@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
-use std::{path::PathBuf, process::ExitCode};
+use std::{fs, io::Read, path::PathBuf, process::ExitCode};
+use zeroize::Zeroizing;
 
 use clap::{Parser, Subcommand, error::ErrorKind};
 use serde::Serialize;
@@ -37,6 +38,9 @@ enum Command {
         /// Output path for the private key. The public key is written to PATH.pub.
         #[arg(long)]
         out: PathBuf,
+        /// Read the passphrase from this file instead of prompting.
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
     },
     /// Inspect or fingerprint a public key.
     Key {
@@ -53,11 +57,65 @@ enum Command {
         /// Signature output path; must not already exist.
         #[arg(long)]
         output: PathBuf,
+        /// Read the passphrase from this file instead of prompting.
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
     },
     /// Verify a detached signature using an explicitly selected public key.
     Verify {
         /// File to verify.
         path: PathBuf,
+        /// Detached signature record.
+        #[arg(long)]
+        signature: PathBuf,
+        /// Public key obtained through a trusted channel.
+        #[arg(long)]
+        public_key: PathBuf,
+        /// Emit one JSON object on stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Create, sign, or verify a deterministic directory manifest.
+    Manifest {
+        #[command(subcommand)]
+        command: ManifestCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum ManifestCommand {
+    /// Create a deterministic manifest for a directory tree.
+    Create {
+        /// Directory tree to scan.
+        root: PathBuf,
+        /// Output manifest path, outside the scanned root.
+        #[arg(long)]
+        output: PathBuf,
+        /// Emit one JSON object on stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Sign a manifest using an Ed25519 key.
+    Sign {
+        /// Manifest to sign.
+        manifest: PathBuf,
+        /// OpenSSH private key.
+        #[arg(long)]
+        key: PathBuf,
+        /// Detached signature output path.
+        #[arg(long)]
+        output: PathBuf,
+        /// Read the passphrase from this file instead of prompting.
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
+    },
+    /// Verify a signed manifest and the exact directory file set.
+    Verify {
+        /// Manifest to verify.
+        manifest: PathBuf,
+        /// Directory tree root.
+        #[arg(long)]
+        root: PathBuf,
         /// Detached signature record.
         #[arg(long)]
         signature: PathBuf,
@@ -108,6 +166,21 @@ struct VerifyError {
     message: String,
 }
 
+#[derive(Serialize)]
+struct ManifestVerifyOutput {
+    schema_version: u8,
+    verified: bool,
+    signature_valid: Option<bool>,
+    signer_trusted: Option<bool>,
+    integrity_valid: Option<bool>,
+    signer_fingerprint: Option<String>,
+    matched_files: u64,
+    missing_files: u64,
+    modified_files: u64,
+    unexpected_files: u64,
+    errors: Vec<VerifyError>,
+}
+
 fn main() -> ExitCode {
     match Cli::try_parse() {
         Ok(cli) => match run(cli) {
@@ -147,7 +220,12 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
         } => {
             let algorithm: seal::hash::Algorithm =
                 algorithm.parse().map_err(|error: String| (7, error))?;
-            let digest = seal::hash::hash_file(&path, algorithm).map_err(|error| {
+            let digest = if path == std::path::Path::new("-") {
+                seal::hash::hash_reader(&mut std::io::stdin().lock(), algorithm)
+            } else {
+                seal::hash::hash_file(&path, algorithm)
+            }
+            .map_err(|error| {
                 let code = if matches!(error, seal::hash::HashError::AlgorithmUnavailable) {
                     7
                 } else {
@@ -169,8 +247,13 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
             }
             Ok(())
         }
-        Command::Keygen { out } => {
-            let fingerprint = seal::signature::keygen(&out).map_err(signature_error)?;
+        Command::Keygen {
+            out,
+            passphrase_file,
+        } => {
+            let passphrase = load_passphrase(passphrase_file.as_deref(), true)?;
+            let fingerprint =
+                seal::signature::keygen(&out, passphrase.as_bytes()).map_err(signature_error)?;
             println!("Ed25519 key pair created.");
             println!("Private key: {}", escape_terminal(&out.to_string_lossy()));
             let mut public = out.as_os_str().to_os_string();
@@ -194,9 +277,15 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                 Ok(())
             }
         },
-        Command::Sign { path, key, output } => {
-            let signer =
-                seal::signature::sign_file(&path, &key, &output).map_err(signature_error)?;
+        Command::Sign {
+            path,
+            key,
+            output,
+            passphrase_file,
+        } => {
+            let passphrase = load_passphrase(passphrase_file.as_deref(), false)?;
+            let signer = seal::signature::sign_file(&path, &key, &output, passphrase.as_bytes())
+                .map_err(signature_error)?;
             println!("SIGNED");
             println!("Artifact: {}", escape_terminal(&path.to_string_lossy()));
             println!("Signature: {}", escape_terminal(&output.to_string_lossy()));
@@ -276,11 +365,281 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                 }
             }
         },
+        Command::Manifest { command } => match command {
+            ManifestCommand::Create { root, output, json } => {
+                let manifest = seal::tree::create_manifest(&root, &output).map_err(tree_error)?;
+                if json {
+                    #[derive(Serialize)]
+                    struct Created<'a> {
+                        schema_version: u8,
+                        created: bool,
+                        files: usize,
+                        manifest: &'a str,
+                    }
+                    let rendered = output.to_string_lossy();
+                    println!(
+                        "{}",
+                        serde_json::to_string(&Created {
+                            schema_version: 1,
+                            created: true,
+                            files: manifest.files.len(),
+                            manifest: &rendered,
+                        })
+                        .map_err(|error| (5, format!("could not encode JSON: {error}")))?
+                    );
+                } else {
+                    println!("MANIFEST CREATED");
+                    println!("Files: {}", manifest.files.len());
+                    println!("Manifest: {}", escape_terminal(&output.to_string_lossy()));
+                }
+                Ok(())
+            }
+            ManifestCommand::Sign {
+                manifest,
+                key,
+                output,
+                passphrase_file,
+            } => {
+                let passphrase = load_passphrase(passphrase_file.as_deref(), false)?;
+                let signer =
+                    seal::signature::sign_manifest(&manifest, &key, &output, passphrase.as_bytes())
+                        .map_err(signature_error)?;
+                println!("SIGNED");
+                println!("Object: manifest");
+                println!("Manifest: {}", escape_terminal(&manifest.to_string_lossy()));
+                println!("Signature: {}", escape_terminal(&output.to_string_lossy()));
+                println!("Signer: {signer}");
+                Ok(())
+            }
+            ManifestCommand::Verify {
+                manifest,
+                root,
+                signature,
+                public_key,
+                json,
+            } => {
+                let outputs_inside = seal::tree::output_is_inside_root(&root, &manifest)
+                    .map_err(tree_error)?
+                    || seal::tree::output_is_inside_root(&root, &signature).map_err(tree_error)?;
+                if outputs_inside {
+                    return Err(tree_error(seal::tree::TreeError::OutputInsideRoot));
+                }
+                let (signer, manifest_model) = match seal::signature::verify_manifest_signature(
+                    &manifest,
+                    &signature,
+                    &public_key,
+                ) {
+                    Ok(result) => result,
+                    Err(error) if json => {
+                        let (signature_valid, signer_trusted, integrity_valid) = match &error {
+                            seal::signature::SignatureError::InvalidSignature => {
+                                (Some(false), None, None)
+                            }
+                            seal::signature::SignatureError::UntrustedKey => {
+                                (Some(true), Some(false), None)
+                            }
+                            seal::signature::SignatureError::IntegrityMismatch => {
+                                (Some(true), Some(true), Some(false))
+                            }
+                            _ => (None, None, None),
+                        };
+                        let output = ManifestVerifyOutput {
+                            schema_version: 1,
+                            verified: false,
+                            signature_valid,
+                            signer_trusted,
+                            integrity_valid,
+                            signer_fingerprint: None,
+                            matched_files: 0,
+                            missing_files: 0,
+                            modified_files: 0,
+                            unexpected_files: 0,
+                            errors: vec![VerifyError {
+                                exit_code: error.exit_code(),
+                                message: error.to_string(),
+                            }],
+                        };
+                        println!(
+                            "{}",
+                            serde_json::to_string(&output).map_err(|encode_error| (
+                                5,
+                                format!("could not encode JSON: {encode_error}")
+                            ))?
+                        );
+                        eprintln!("seal: {error}");
+                        return Err((error.exit_code(), String::new()));
+                    }
+                    Err(error) => return Err(signature_error(error)),
+                };
+                match seal::tree::verify_directory(&root, &manifest_model) {
+                    Ok(report) => {
+                        if json {
+                            let output = ManifestVerifyOutput {
+                                schema_version: 1,
+                                verified: true,
+                                signature_valid: Some(true),
+                                signer_trusted: Some(true),
+                                integrity_valid: Some(true),
+                                signer_fingerprint: Some(signer),
+                                matched_files: report.matched_files,
+                                missing_files: report.missing_files,
+                                modified_files: report.modified_files,
+                                unexpected_files: report.unexpected_files,
+                                errors: Vec::new(),
+                            };
+                            println!(
+                                "{}",
+                                serde_json::to_string(&output).map_err(|error| (
+                                    5,
+                                    format!("could not encode JSON: {error}")
+                                ))?
+                            );
+                        } else {
+                            println!("VERIFIED");
+                            println!("Manifest: {}", escape_terminal(&manifest.to_string_lossy()));
+                            println!("Files: {}", report.matched_files);
+                            println!("Signer: {signer}");
+                        }
+                        Ok(())
+                    }
+                    Err(seal::tree::TreeError::IntegrityMismatch(report)) => {
+                        let error = seal::tree::TreeError::IntegrityMismatch(report.clone());
+                        if json {
+                            let output = ManifestVerifyOutput {
+                                schema_version: 1,
+                                verified: false,
+                                signature_valid: Some(true),
+                                signer_trusted: Some(true),
+                                integrity_valid: Some(false),
+                                signer_fingerprint: Some(signer),
+                                matched_files: report.matched_files,
+                                missing_files: report.missing_files,
+                                modified_files: report.modified_files,
+                                unexpected_files: report.unexpected_files,
+                                errors: vec![VerifyError {
+                                    exit_code: 1,
+                                    message: error.to_string(),
+                                }],
+                            };
+                            println!(
+                                "{}",
+                                serde_json::to_string(&output).map_err(|encode_error| (
+                                    5,
+                                    format!("could not encode JSON: {encode_error}")
+                                ))?
+                            );
+                            eprintln!("seal: {error}");
+                            Err((1, String::new()))
+                        } else {
+                            Err(tree_error(error))
+                        }
+                    }
+                    Err(error) if json => {
+                        let output = ManifestVerifyOutput {
+                            schema_version: 1,
+                            verified: false,
+                            signature_valid: Some(true),
+                            signer_trusted: Some(true),
+                            integrity_valid: None,
+                            signer_fingerprint: Some(signer),
+                            matched_files: 0,
+                            missing_files: 0,
+                            modified_files: 0,
+                            unexpected_files: 0,
+                            errors: vec![VerifyError {
+                                exit_code: tree_error_code(&error),
+                                message: error.to_string(),
+                            }],
+                        };
+                        println!(
+                            "{}",
+                            serde_json::to_string(&output).map_err(|encode_error| (
+                                5,
+                                format!("could not encode JSON: {encode_error}")
+                            ))?
+                        );
+                        eprintln!("seal: {error}");
+                        Err((tree_error_code(&error), String::new()))
+                    }
+                    Err(error) => Err(tree_error(error)),
+                }
+            }
+        },
     }
 }
 
 fn signature_error(error: seal::signature::SignatureError) -> (u8, String) {
     (error.exit_code(), error.to_string())
+}
+
+fn load_passphrase(
+    path: Option<&std::path::Path>,
+    confirm: bool,
+) -> Result<Zeroizing<String>, (u8, String)> {
+    let value = if let Some(path) = path {
+        let mut file = fs::File::open(path).map_err(|e| (5, e.to_string()))?;
+        let metadata = file.metadata().map_err(|e| (5, e.to_string()))?;
+        if !metadata.is_file() || metadata.len() > 1024 {
+            return Err((
+                4,
+                "passphrase file must be a regular file of at most 1024 bytes".into(),
+            ));
+        }
+        let mut bytes = Vec::with_capacity(1025);
+        file.by_ref()
+            .take(1025)
+            .read_to_end(&mut bytes)
+            .map_err(|e| (5, e.to_string()))?;
+        if bytes.len() > 1024 {
+            return Err((4, "passphrase file must contain at most 1024 bytes".into()));
+        }
+        let raw = Zeroizing::new(bytes);
+        let raw = raw
+            .strip_suffix(b"\r\n")
+            .or_else(|| raw.strip_suffix(b"\n"))
+            .unwrap_or(&raw);
+        if raw.contains(&b'\n') || raw.contains(&b'\r') {
+            return Err((4, "passphrase file must contain one line".into()));
+        }
+        Zeroizing::new(
+            String::from_utf8(raw.to_vec())
+                .map_err(|_| (4, "passphrase file must be UTF-8".into()))?,
+        )
+    } else {
+        Zeroizing::new(
+            rpassword::prompt_password("Passphrase: ")
+                .map_err(|e| (5, format!("could not read passphrase: {e}")))?,
+        )
+    };
+    if confirm && path.is_none() {
+        let second = Zeroizing::new(
+            rpassword::prompt_password("Confirm passphrase: ")
+                .map_err(|e| (5, format!("could not read passphrase: {e}")))?,
+        );
+        if *value != *second {
+            return Err((4, "passphrases do not match".into()));
+        }
+    }
+    if !(12..=1024).contains(&value.len()) {
+        return Err((4, "passphrase must be 12 to 1024 UTF-8 bytes".into()));
+    }
+    Ok(value)
+}
+
+fn tree_error(error: seal::tree::TreeError) -> (u8, String) {
+    (tree_error_code(&error), error.to_string())
+}
+
+fn tree_error_code(error: &seal::tree::TreeError) -> u8 {
+    use seal::tree::TreeError;
+    match error {
+        TreeError::Io(_) => 5,
+        TreeError::OutputInsideRoot
+        | TreeError::ResourceLimit(_)
+        | TreeError::UnsupportedObject(_)
+        | TreeError::Manifest(_) => 4,
+        TreeError::IntegrityMismatch(_) => 1,
+    }
 }
 
 fn escape_terminal(value: &str) -> String {

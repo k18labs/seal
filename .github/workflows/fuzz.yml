@@ -1,0 +1,26 @@
+name: Bounded fuzz smoke
+
+on:
+  schedule:
+    - cron: "41 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install pinned stable and fuzz nightly
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup toolchain install nightly-2026-11-01 --profile minimal
+          cargo +1.96.0 install cargo-fuzz --version 0.13.2 --locked
+      - name: Run bounded fuzz targets
+        run: |
+          for target in manifest signature_record public_key path; do
+            cargo +nightly-2026-11-01 fuzz run "$target" -- -max_total_time=60 -rss_limit_mb=2048
+          done

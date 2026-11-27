@@ -228,8 +228,25 @@ fn key_and_signature_outputs_do_not_overwrite() {
 }
 
 fn run(args: &[&str]) -> Output {
+    let mut owned: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+    let key_flag = match args.first().copied() {
+        Some("keygen") => "--out",
+        Some("sign") => "--key",
+        _ => "",
+    };
+    if !key_flag.is_empty() && !args.contains(&"--passphrase-file") {
+        if let Some(index) = args.iter().position(|arg| *arg == key_flag) {
+            let mut pass = PathBuf::from(args[index + 1]);
+            pass.set_extension("test-passphrase");
+            fs::write(&pass, b"test passphrase for seal\n").unwrap();
+            owned.extend([
+                "--passphrase-file".to_owned(),
+                pass.to_string_lossy().into_owned(),
+            ]);
+        }
+    }
     Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(args)
+        .args(owned)
         .output()
         .unwrap()
 }
@@ -252,5 +269,8 @@ fn public_path(private: &Path) -> PathBuf {
 fn remove_all<const N: usize>(paths: [&PathBuf; N]) {
     for path in paths {
         let _ = fs::remove_file(path);
+        let mut pass = path.clone();
+        pass.set_extension("test-passphrase");
+        let _ = fs::remove_file(pass);
     }
 }

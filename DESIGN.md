@@ -1,7 +1,9 @@
 # Design
 
-Seal separates reusable hashing (`src/hash.rs`) and signature/key handling (`src/signature.rs`) from argument parsing and display (`src/main.rs`). `hash_file_with_size` checks a regular file and hashes/counts it through a fixed 64 KiB buffer. `hash_reader` is available to library users and streams any `Read` implementation. File signatures use strict metadata plus an SSHSIG envelope as specified in `docs/SIGNATURE_FORMAT.md`.
+Seal keeps reusable hashing (`src/hash.rs`), manifest validation (`src/manifest.rs`), capability-based tree traversal (`src/tree.rs`), signature/key operations (`src/signature.rs`), and CLI output (`src/main.rs`) separate. Hashing streams with a 64 KiB buffer. File and manifest signatures use distinct SSHSIG namespaces and bind SHA-256 digests, lengths, and object type/version through fixed binary envelopes.
 
-SHA-256 is mandatory. BLAKE3 is an optional Cargo feature enabled by default. First-party Rust code forbids unsafe code. No global mutable state or background process is used.
+Private keys are encrypted with the fixed Argon2id/XChaCha20-Poly1305 container described in `docs/KEY_MANAGEMENT.md`. Unix files use mode `0600`; Windows applies and verifies a protected ACL before writing ciphertext. First-party Rust code forbids unsafe code; the Windows permissions crate encapsulates platform APIs.
 
-The implementation checks path metadata and then opens it, followed by an opened-handle type check. A concurrent replacement can still race between the path check and open; this is a known TOCTOU limitation. There is no directory traversal yet. Unix private keys are created with mode `0600`; Windows uses the inherited ACL of the destination directory and that ACL is not inspected or replaced.
+Manifest traversal uses `cap-std`/`cap-fs-ext` directory capabilities and no-follow opens. It rejects symlinks/reparse points and special objects, constrains filenames to portable ASCII, enforces resource limits, and checks metadata around reads. This is not an atomic snapshot: concurrent mutation can still occur between checks. Manifest outputs must be outside the traversed root.
+
+The project is offline by default and has no telemetry, service dependency, or background process. Release builds are manually dispatched and produce candidate artifacts with checksums and GitHub provenance; they do not create a GitHub Release or publish a production v1 tag.

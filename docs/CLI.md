@@ -2,7 +2,7 @@
 
 ## `seal hash PATH`
 
-Hashes one regular file. `--algorithm sha256|blake3` selects the digest, defaulting to SHA-256. `--json` prints one JSON object with `algorithm`, `digest`, and `path` fields. In human mode the output is the lowercase digest, two spaces, and a path with terminal control characters escaped.
+Hashes one regular file, or standard input when `PATH` is `-`. `--algorithm sha256|blake3` selects the digest, defaulting to SHA-256. `--json` prints one JSON object with `algorithm`, `digest`, and `path` fields. In human mode the output is the lowercase digest, two spaces, and a path with terminal control characters escaped.
 
 ## `seal version`
 
@@ -11,12 +11,16 @@ Prints the package version. Use `seal --help` for parser-generated usage.
 ## Key and signature commands
 
 ```text
-seal keygen --out PRIVATE_PATH
+seal keygen --out PRIVATE_PATH [--passphrase-file FILE]
 seal key fingerprint --public-key PUBLIC_PATH
 seal key inspect --public-key PUBLIC_PATH
-seal sign FILE --key PRIVATE_PATH --output SIGNATURE_PATH
+seal sign FILE --key PRIVATE_PATH --output SIGNATURE_PATH [--passphrase-file FILE]
 seal verify FILE --signature SIGNATURE_PATH --public-key PUBLIC_PATH [--json]
 ```
+
+Without `--passphrase-file`, key generation prompts twice and signing prompts once. The file option accepts one UTF-8 line and should be used only with a controlled automation secret. See [KEY_MANAGEMENT.md](KEY_MANAGEMENT.md) for format and storage details.
+
+Directory commands are `seal manifest create ROOT --output FILE [--json]`, `seal manifest sign FILE --key PRIVATE_PATH --output SIGNATURE_PATH [--passphrase-file FILE]`, and `seal manifest verify FILE --root ROOT --signature SIGNATURE_PATH --public-key PUBLIC_PATH [--json]`. Verification requires an exact file set and fails on symlinks, reparse points, special objects, unsafe or unrepresentable paths, or files that change while read.
 
 Key generation creates `PRIVATE_PATH` and `PRIVATE_PATH.pub`, and fails rather than overwriting either. File signatures use the format in [SIGNATURE_FORMAT.md](SIGNATURE_FORMAT.md). The public key must come from a separately trusted source.
 

@@ -1,0 +1,12 @@
+{
+  "target": "x86_64-pc-windows-msvc",
+  "host": "Windows-11-10.0.26300-SP0",
+  "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: x86_64-pc-windows-msvc\nrelease: 1.96.0\nLLVM version: 22.1.2",
+  "first_sha256": "0c8ac5cb0bad03339fe08e26995e136622104aa0b9153ce9d57923be07b2fb4c",
+  "second_sha256": "0c8ac5cb0bad03339fe08e26995e136622104aa0b9153ce9d57923be07b2fb4c",
+  "binary_bytes": 1028096,
+  "differing_offsets_sample": [],
+  "reproducible": true,
+  "scope": "Two clean release builds on one runner image with Rust 1.96.0 and one target; this does not establish cross-host reproducibility.",
+  "host_machine": "ARM64"
+}

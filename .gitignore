@@ -1,3 +1,6 @@
 /target/
 *.tmp
 *.swp
+
+/fuzz/target/
+/scripts/__pycache__/

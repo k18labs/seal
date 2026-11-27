@@ -1,22 +1,25 @@
-# Seal specification (initial implementation)
+# Seal specification, v1 candidate
 
 ## Scope
 
-Seal is an offline file-integrity CLI and reusable Rust library. Version 0.1.1 implements regular-file hashing using SHA-256 and optional BLAKE3, Ed25519 key generation, detached file signing and verification, and explicit trusted-key selection. It does not implement manifests or directory verification.
+Seal is an offline file-integrity CLI and Rust library. The current candidate implements regular-file hashing (SHA-256 and optional BLAKE3), Ed25519 signing and verification, encrypted private-key storage, deterministic signed manifests, and explicit trusted-key selection.
 
-## Current behavior
+## Hashing
 
-- `seal hash PATH [--algorithm sha256|blake3] [--json]` hashes a regular file with a 65,536-byte buffer.
-- SHA-256 is the default. Unknown algorithm values are rejected by the CLI parser.
-- `seal version` prints the package version.
-- `seal keygen --out PATH` generates an unencrypted OpenSSH Ed25519 private key at `PATH` and a public key at `PATH.pub`. Creation fails if either path already exists. Unix private-key creation mode is `0600`; on Windows the file inherits the destination directory's ACL.
-- `seal key fingerprint --public-key PATH` prints the OpenSSH SHA-256 fingerprint. `seal key inspect --public-key PATH` reports Ed25519 and the fingerprint.
-- `seal sign PATH --key PRIVATE --output SIGNATURE` signs a versioned file digest envelope and refuses to overwrite the signature output.
-- `seal verify PATH --signature SIGNATURE --public-key PUBLIC [--json]` verifies with the explicitly provided key and checks the artifact's size and SHA-256 digest. The signature's embedded key is never accepted as trust by itself.
-- Seal signature records have a strict 64 KiB input cap; key files have a 16 KiB cap.
-- Human output is `<lowercase-hex-digest><two spaces><escaped path>`.
-- JSON output is one UTF-8 JSON object with `algorithm`, `digest`, and `path` string fields. `path` uses the platform's lossy display conversion; the digest is computed from file bytes, not the path.
-- Directories and other non-regular files are rejected. An I/O or type error produces no digest on stdout.
-- Process exit status is 0 for success/help/version, 1 for content integrity mismatch, 2 for an invalid cryptographic signature, 3 for an invalid or untrusted public key, 4 for malformed input/key data, 5 for filesystem or output failures, 6 for invalid command-line usage, and 7 for unsupported algorithms or formats.
+`seal hash PATH [--algorithm sha256|blake3] [--json]` hashes a regular file with a fixed 65,536-byte buffer. `PATH` equal to `-` reads standard input with the same bounded buffer. SHA-256 is default. Directories and special files are rejected. Output formats are documented in `docs/CLI.md`.
 
-This specification describes the current implementation only. Future formats must have explicit versions and reject unsupported algorithms.
+## Keys and signatures
+
+`seal keygen --out PATH` writes encrypted private key material to `PATH` and an OpenSSH Ed25519 public key to `PATH.pub`, failing if either exists. It prompts twice for a 12–1024-byte UTF-8 passphrase; `--passphrase-file FILE` supplies one line for controlled automation. Private-key encryption and platform file permissions are specified in `docs/KEY_MANAGEMENT.md` and `docs/CRYPTOGRAPHY.md`.
+
+`seal sign PATH --key KEY --output SIG` creates a detached Ed25519 SSHSIG in the versioned Seal envelope. `seal verify PATH --signature SIG --public-key PUB [--json]` requires an explicit public key and checks signature, key identity, size, and SHA-256 digest.
+
+## Manifests
+
+`seal manifest create ROOT --output FILE` creates the canonical format in `docs/MANIFEST_FORMAT.md`. `seal manifest sign FILE ...` signs exact manifest bytes. `seal manifest verify FILE --root ROOT --signature SIG --public-key PUB` validates signature and strict exact file-set integrity. Limits, path policy, and filesystem race limitations are documented in the format and threat model documents.
+
+## Exit codes
+
+0 success/help/version; 1 integrity mismatch; 2 invalid signature; 3 invalid or untrusted key; 4 malformed input or policy rejection; 5 I/O or output failure; 6 CLI usage error; 7 unsupported algorithm or format.
+
+This is a candidate specification. Manifest and encrypted-key formats have not received independent review; no stable v1 release should imply such a review occurred.
