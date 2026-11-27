@@ -95,6 +95,24 @@ enum ManifestCommand {
         #[arg(long)]
         json: bool,
     },
+    /// Inspect a canonical manifest without checking files on disk.
+    Inspect {
+        /// Manifest file to inspect.
+        manifest: PathBuf,
+        /// Emit one JSON object on stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Compare two canonical manifests without checking files on disk.
+    Compare {
+        /// First manifest to compare.
+        left: PathBuf,
+        /// Second manifest to compare.
+        right: PathBuf,
+        /// Emit one JSON object on stdout.
+        #[arg(long)]
+        json: bool,
+    },
     /// Sign a manifest using an Ed25519 key.
     Sign {
         /// Manifest to sign.
@@ -179,6 +197,37 @@ struct ManifestVerifyOutput {
     modified_files: u64,
     unexpected_files: u64,
     errors: Vec<VerifyError>,
+}
+
+#[derive(Serialize)]
+struct ManifestEntryOutput<'a> {
+    path: &'a str,
+    size: u64,
+    digest: &'a str,
+}
+
+#[derive(Serialize)]
+struct ManifestInspectOutput<'a> {
+    schema_version: u8,
+    manifest_version: u8,
+    algorithm: &'a str,
+    files: usize,
+    total_bytes: u64,
+    entries: Vec<ManifestEntryOutput<'a>>,
+}
+
+#[derive(Serialize)]
+struct ManifestCompareOutput {
+    schema_version: u8,
+    left_manifest_version: u8,
+    right_manifest_version: u8,
+    left_algorithm: String,
+    right_algorithm: String,
+    identical: bool,
+    added: Vec<String>,
+    removed: Vec<String>,
+    changed: Vec<String>,
+    verifies_files_on_disk: bool,
 }
 
 fn main() -> ExitCode {
@@ -394,6 +443,83 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                 }
                 Ok(())
             }
+            ManifestCommand::Inspect { manifest, json } => {
+                let model = read_manifest(&manifest)?;
+                let total_bytes = model.files.iter().map(|entry| entry.size).sum();
+                if json {
+                    let output = ManifestInspectOutput {
+                        schema_version: 1,
+                        manifest_version: model.version,
+                        algorithm: &model.algorithm,
+                        files: model.files.len(),
+                        total_bytes,
+                        entries: model
+                            .files
+                            .iter()
+                            .map(|entry| ManifestEntryOutput {
+                                path: &entry.path,
+                                size: entry.size,
+                                digest: &entry.digest,
+                            })
+                            .collect(),
+                    };
+                    println!(
+                        "{}",
+                        serde_json::to_string(&output)
+                            .map_err(|error| (5, format!("could not encode JSON: {error}")))?
+                    );
+                } else {
+                    println!("MANIFEST");
+                    println!("Version: {}", model.version);
+                    println!("Algorithm: {}", model.algorithm);
+                    println!("Files: {}", model.files.len());
+                    println!("Total bytes: {total_bytes}");
+                    println!(
+                        "NOTE: This inspects manifest data; it does not verify files on disk."
+                    );
+                    for entry in &model.files {
+                        println!(
+                            "{}\t{}\t{}",
+                            entry.size,
+                            entry.digest,
+                            escape_terminal(&entry.path)
+                        );
+                    }
+                }
+                Ok(())
+            }
+            ManifestCommand::Compare { left, right, json } => {
+                let left_model = read_manifest(&left)?;
+                let right_model = read_manifest(&right)?;
+                let output = compare_manifests(&left_model, &right_model);
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string(&output)
+                            .map_err(|error| (5, format!("could not encode JSON: {error}")))?
+                    );
+                } else {
+                    println!(
+                        "{}",
+                        if output.identical {
+                            "IDENTICAL MANIFEST CONTENTS"
+                        } else {
+                            "MANIFESTS DIFFER"
+                        }
+                    );
+                    println!("NOTE: Comparing manifests does not verify files on disk.");
+                    for path in &output.added {
+                        println!("+ {}", escape_terminal(path));
+                    }
+                    for path in &output.removed {
+                        println!("- {}", escape_terminal(path));
+                    }
+                    for path in &output.changed {
+                        println!("~ {}", escape_terminal(path));
+                    }
+                }
+                Ok(())
+            }
             ManifestCommand::Sign {
                 manifest,
                 key,
@@ -565,6 +691,95 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                 }
             }
         },
+    }
+}
+
+fn read_manifest(path: &std::path::Path) -> Result<seal::manifest::Manifest, (u8, String)> {
+    let mut file =
+        fs::File::open(path).map_err(|error| (5, format!("could not open manifest: {error}")))?;
+    let metadata = file
+        .metadata()
+        .map_err(|error| (5, format!("could not inspect manifest: {error}")))?;
+    if !metadata.is_file() {
+        return Err((4, "manifest input must be a regular file".to_owned()));
+    }
+    let max_bytes = seal::manifest::MAX_MANIFEST_BYTES;
+    if metadata.len() > max_bytes as u64 {
+        return Err((4, "manifest exceeds the 16 MiB input size limit".to_owned()));
+    }
+    let capacity = usize::try_from(metadata.len())
+        .map_err(|_| (4, "manifest exceeds the 16 MiB input size limit".to_owned()))?;
+    let mut bytes = Vec::with_capacity(capacity);
+    file.by_ref()
+        .take(max_bytes as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| (5, format!("could not read manifest: {error}")))?;
+    if bytes.len() > max_bytes {
+        return Err((4, "manifest exceeds the 16 MiB input size limit".to_owned()));
+    }
+    seal::manifest::Manifest::parse(&bytes).map_err(|error| (4, error.to_string()))
+}
+
+fn compare_manifests(
+    left: &seal::manifest::Manifest,
+    right: &seal::manifest::Manifest,
+) -> ManifestCompareOutput {
+    let mut added = Vec::new();
+    let mut removed = Vec::new();
+    let mut changed = Vec::new();
+    let (mut left_index, mut right_index) = (0, 0);
+
+    while left_index < left.files.len() || right_index < right.files.len() {
+        match (left.files.get(left_index), right.files.get(right_index)) {
+            (Some(left_entry), Some(right_entry)) => {
+                match left_entry.path.as_bytes().cmp(right_entry.path.as_bytes()) {
+                    std::cmp::Ordering::Less => {
+                        removed.push(left_entry.path.clone());
+                        left_index += 1;
+                    }
+                    std::cmp::Ordering::Greater => {
+                        added.push(right_entry.path.clone());
+                        right_index += 1;
+                    }
+                    std::cmp::Ordering::Equal => {
+                        if left_entry.size != right_entry.size
+                            || left_entry.digest != right_entry.digest
+                        {
+                            changed.push(left_entry.path.clone());
+                        }
+                        left_index += 1;
+                        right_index += 1;
+                    }
+                }
+            }
+            (Some(left_entry), None) => {
+                removed.push(left_entry.path.clone());
+                left_index += 1;
+            }
+            (None, Some(right_entry)) => {
+                added.push(right_entry.path.clone());
+                right_index += 1;
+            }
+            (None, None) => break,
+        }
+    }
+
+    let identical = added.is_empty()
+        && removed.is_empty()
+        && changed.is_empty()
+        && left.version == right.version
+        && left.algorithm == right.algorithm;
+    ManifestCompareOutput {
+        schema_version: 1,
+        left_manifest_version: left.version,
+        right_manifest_version: right.version,
+        left_algorithm: left.algorithm.clone(),
+        right_algorithm: right.algorithm.clone(),
+        identical,
+        added,
+        removed,
+        changed,
+        verifies_files_on_disk: false,
     }
 }
 
