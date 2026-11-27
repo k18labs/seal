@@ -72,6 +72,17 @@ pub struct ScanProgress {
     pub bytes_read: u64,
 }
 
+struct ProgressReporter<'a> {
+    state: ScanProgress,
+    callback: &'a mut dyn FnMut(ScanProgress),
+}
+
+impl ProgressReporter<'_> {
+    fn report(&mut self) {
+        (self.callback)(self.state);
+    }
+}
+
 struct VerificationState<'a> {
     expected: HashMap<&'a str, &'a FileEntry>,
     found: HashSet<String>,
@@ -104,7 +115,10 @@ pub fn create_manifest_with_progress(
     let mut total_bytes = 0u64;
     let mut encoded_budget = 46usize;
     let mut total_entries = 0usize;
-    let mut scan_progress = ScanProgress::default();
+    let mut scan_progress = ProgressReporter {
+        state: ScanProgress::default(),
+        callback: &mut progress,
+    };
     visit_directory(
         &root_dir,
         "",
@@ -113,7 +127,6 @@ pub fn create_manifest_with_progress(
         &mut encoded_budget,
         &mut total_entries,
         &mut scan_progress,
-        &mut progress,
     )?;
     let manifest = Manifest::new(files)?;
     let bytes = manifest.to_canonical_bytes()?;
@@ -136,8 +149,7 @@ fn visit_directory(
     total_bytes: &mut u64,
     encoded_budget: &mut usize,
     total_entries: &mut usize,
-    scan_progress: &mut ScanProgress,
-    progress: &mut impl FnMut(ScanProgress),
+    progress: &mut ProgressReporter<'_>,
 ) -> Result<(), TreeError> {
     let initial_modified = dir.dir_metadata()?.modified().ok();
     for entry in dir.entries()? {
@@ -174,7 +186,6 @@ fn visit_directory(
                 total_bytes,
                 encoded_budget,
                 total_entries,
-                scan_progress,
                 progress,
             )?;
             continue;
@@ -200,20 +211,20 @@ fn visit_directory(
         if !before.is_file() {
             return Err(TreeError::UnsupportedObject(path));
         }
-        scan_progress.files_seen += 1;
-        progress(*scan_progress);
+        progress.state.files_seen += 1;
+        progress.report();
         let remaining = manifest::MAX_TOTAL_BYTES - *total_bytes;
         if before.len() > remaining {
             return Err(TreeError::ResourceLimit("1 TiB total file size"));
         }
         let mut bounded = file.take(remaining.saturating_add(1));
-        let bytes_before_file = scan_progress.bytes_read;
+        let bytes_before_file = progress.state.bytes_read;
         let (digest, size) = hash::hash_reader_with_size_and_progress(
             &mut bounded,
             hash::Algorithm::Sha256,
             |bytes| {
-                scan_progress.bytes_read = bytes_before_file.saturating_add(bytes);
-                progress(*scan_progress);
+                progress.state.bytes_read = bytes_before_file.saturating_add(bytes);
+                progress.report();
             },
         )
         .map_err(|error| TreeError::Io(io::Error::other(error.to_string())))?;
@@ -232,8 +243,8 @@ fn visit_directory(
         *total_bytes = total_bytes
             .checked_add(size)
             .ok_or(TreeError::ResourceLimit("1 TiB total file size"))?;
-        scan_progress.bytes_read = *total_bytes;
-        progress(*scan_progress);
+        progress.state.bytes_read = *total_bytes;
+        progress.report();
         let entry_cost = serde_json::to_vec(&FileEntry {
             path: path.clone(),
             size,
@@ -285,8 +296,11 @@ pub fn verify_directory_with_progress(
         actual_count: 0,
         total_entries: 0,
     };
-    let mut scan_progress = ScanProgress::default();
-    verify_directory_inner(&root_dir, "", &mut state, &mut scan_progress, &mut progress)?;
+    let mut scan_progress = ProgressReporter {
+        state: ScanProgress::default(),
+        callback: &mut progress,
+    };
+    verify_directory_inner(&root_dir, "", &mut state, &mut scan_progress)?;
     state.report.missing_files = state
         .expected
         .keys()
@@ -346,8 +360,7 @@ fn verify_directory_inner(
     dir: &Dir,
     prefix: &str,
     state: &mut VerificationState<'_>,
-    scan_progress: &mut ScanProgress,
-    progress: &mut impl FnMut(ScanProgress),
+    progress: &mut ProgressReporter<'_>,
 ) -> Result<(), TreeError> {
     let initial_modified = dir.dir_metadata()?.modified().ok();
     for entry in dir.entries()? {
@@ -377,15 +390,15 @@ fn verify_directory_inner(
                     TreeError::Io(error)
                 }
             })?;
-            verify_directory_inner(&child, &path, state, scan_progress, progress)?;
+            verify_directory_inner(&child, &path, state, progress)?;
             continue;
         }
         if !file_type.is_file() {
             return Err(TreeError::UnsupportedObject(path));
         }
         state.actual_count += 1;
-        scan_progress.files_seen += 1;
-        progress(*scan_progress);
+        progress.state.files_seen += 1;
+        progress.report();
         if state.actual_count > manifest::MAX_FILES {
             return Err(TreeError::ResourceLimit("100,000 file count"));
         }
@@ -414,13 +427,13 @@ fn verify_directory_inner(
             return Err(TreeError::ResourceLimit("1 TiB total file size"));
         }
         let mut bounded = file.take(remaining.saturating_add(1));
-        let bytes_before_file = scan_progress.bytes_read;
+        let bytes_before_file = progress.state.bytes_read;
         let (digest, size) = hash::hash_reader_with_size_and_progress(
             &mut bounded,
             hash::Algorithm::Sha256,
             |bytes| {
-                scan_progress.bytes_read = bytes_before_file.saturating_add(bytes);
-                progress(*scan_progress);
+                progress.state.bytes_read = bytes_before_file.saturating_add(bytes);
+                progress.report();
             },
         )
         .map_err(|error| TreeError::Io(io::Error::other(error.to_string())))?;
