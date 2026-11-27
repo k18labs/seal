@@ -257,7 +257,11 @@ fn stderr(output: &Output) -> String {
 
 fn unique_path(suffix: &str) -> PathBuf {
     let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("seal-{suffix}-{}-{id}", std::process::id()))
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    std::env::temp_dir().join(format!("seal-{suffix}-{}-{nonce}-{id}", std::process::id()))
 }
 
 fn public_path(private: &Path) -> PathBuf {

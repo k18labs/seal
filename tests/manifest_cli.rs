@@ -71,7 +71,7 @@ fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
         os::unix::fs::symlink,
         sync::{Arc, atomic::AtomicBool},
         thread,
-        time::Duration,
+        time::{Duration, Instant},
     };
 
     let root = unique_path("race-root");
@@ -107,13 +107,16 @@ fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
     for attempt in 0..8 {
         let output = output_path.with_extension(format!("{attempt}.json"));
         outcomes.push((
-            run(&[
-                "manifest",
-                "create",
-                root.to_str().unwrap(),
-                "--output",
-                output.to_str().unwrap(),
-            ]),
+            run_with_timeout(
+                &[
+                    "manifest",
+                    "create",
+                    root.to_str().unwrap(),
+                    "--output",
+                    output.to_str().unwrap(),
+                ],
+                Duration::from_secs(20),
+            ),
             output,
         ));
     }
@@ -142,6 +145,33 @@ fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
         let _ = fs::remove_file(output);
     }
     remove_all([&root, &outside_dir, &output_path]);
+}
+
+#[cfg(unix)]
+fn run_with_timeout(args: &[&str], timeout: std::time::Duration) -> std::process::Output {
+    use std::process::Stdio;
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_seal"))
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if child.try_wait().unwrap().is_some() {
+            return child.wait_with_output().unwrap();
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let output = child.wait_with_output().unwrap();
+            panic!(
+                "manifest create exceeded {timeout:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
 }
 
 #[test]
@@ -572,7 +602,11 @@ fn stderr(output: &std::process::Output) -> String {
 
 fn unique_path(suffix: &str) -> PathBuf {
     let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("seal-{suffix}-{}-{id}", std::process::id()))
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    std::env::temp_dir().join(format!("seal-{suffix}-{}-{nonce}-{id}", std::process::id()))
 }
 
 fn public_path(private: &std::path::Path) -> PathBuf {

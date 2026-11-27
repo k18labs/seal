@@ -105,5 +105,9 @@ fn large_file_is_hashed_correctly() {
 
 fn unique_path() -> std::path::PathBuf {
     let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("seal-test-{}-{id}", std::process::id()))
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    std::env::temp_dir().join(format!("seal-test-{}-{nonce}-{id}", std::process::id()))
 }
