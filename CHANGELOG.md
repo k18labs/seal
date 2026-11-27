@@ -14,7 +14,7 @@
 - Raise the declared MSRV to Rust 1.87 to use a fixed `ctutils` release addressing a constant-time advisory.
 - Add regression tests for prompt confirmation mismatch, partial-write rollback, concurrent replacement and symlink swaps, and bound CLI subprocess runtimes.
 - Complete qualified external format/security review with no blocking findings reported by the maintainer; the report is not included in this repository.
-- Run the six-target candidate CI and the manual artifact/SBOM/provenance workflow from the version-aligned tag.
+- Pass six-target candidate CI and run the manual artifact/SBOM/provenance workflow from the version-aligned tag; verify all six archive checksums and all seven attestations.
 - This is a release candidate only; production `v1.0.0` publication remains separate.
 
 ## 0.1.1

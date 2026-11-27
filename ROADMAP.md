@@ -5,7 +5,7 @@
 - **M2 Signatures:** Ed25519 key generation, OpenSSH key encoding, detached versioned signatures, explicit trusted public key, encrypted private-key storage, file sign/verify, stable trust results. Implemented; qualified external format/security review completed with no blocking findings reported by the maintainer.
 - **M3 Manifests:** deterministic versioned manifest, strict parser and limits, safe traversal, signed manifest verification, unexpected/missing file detection. Implemented; all six CI targets pass with the regression suite.
 - **M4 Hardening:** fuzzing, platform race analysis, dependency review, reproducibility, resource limits, and qualified format review. Complete for this candidate; bounded fuzz smoke, six-target reproducibility checks, CI, race regressions, and external review all have passing evidence. Review report is not included in this repository.
-- **M5 Release candidate:** cross-platform builds, SBOM/provenance, bootstrap trust, measured performance and known limitations. Package version `1.0.0-rc.1` is prepared; the version-aligned tag and manual artifact workflow are pending. Production `v1.0.0` publication remains a separate maintainer decision.
+- **M5 Release candidate:** cross-platform builds, SBOM/provenance, bootstrap trust, measured performance and known limitations. Tag `v1.0.0-rc.1` and its manual artifact workflow completed; all six archives and the SBOM passed GitHub attestation verification, and all six archive SHA-256 files matched. Production `v1.0.0` publication remains a separate maintainer decision.
 
 The maintainer reports the qualified external review found no blocking findings; its report is not included in this repository.
 
