@@ -1,0 +1,5 @@
+#![forbid(unsafe_code)]
+
+pub mod hash;
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
