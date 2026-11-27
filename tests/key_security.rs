@@ -5,6 +5,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+mod common;
+
 static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[test]
@@ -241,10 +243,7 @@ raise SystemExit(os.WEXITSTATUS(status))
 }
 
 fn run(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(args)
-        .output()
-        .unwrap()
+    common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args(args))
 }
 
 fn stderr(output: &Output) -> String {

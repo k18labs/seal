@@ -5,6 +5,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+mod common;
+
 static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[test]
@@ -149,29 +151,7 @@ fn concurrent_file_to_symlink_replacement_never_hashes_outside_target() {
 
 #[cfg(unix)]
 fn run_with_timeout(args: &[&str], timeout: std::time::Duration) -> std::process::Output {
-    use std::process::Stdio;
-
-    let mut child = Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let deadline = std::time::Instant::now() + timeout;
-    loop {
-        if child.try_wait().unwrap().is_some() {
-            return child.wait_with_output().unwrap();
-        }
-        if std::time::Instant::now() >= deadline {
-            let _ = child.kill();
-            let output = child.wait_with_output().unwrap();
-            panic!(
-                "manifest create exceeded {timeout:?}: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    common::output_with_timeout(Command::new(env!("CARGO_BIN_EXE_seal")).args(args), timeout)
 }
 
 #[test]
@@ -590,10 +570,7 @@ fn run(args: &[&str]) -> std::process::Output {
             ]);
         }
     }
-    Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(owned)
-        .output()
-        .unwrap()
+    common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args(owned))
 }
 
 fn stderr(output: &std::process::Output) -> String {

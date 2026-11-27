@@ -4,16 +4,17 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+mod common;
+
 static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[test]
 fn hashes_empty_file_as_sha256() {
     let path = unique_path();
     fs::write(&path, []).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(["hash", path.to_str().unwrap()])
-        .output()
-        .unwrap();
+    let output = common::run(
+        Command::new(env!("CARGO_BIN_EXE_seal")).args(["hash", path.to_str().unwrap()]),
+    );
     let _ = fs::remove_file(&path);
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -26,10 +27,11 @@ fn hashes_empty_file_as_sha256() {
 fn json_output_is_machine_readable() {
     let path = unique_path();
     fs::write(&path, b"abc").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(["hash", path.to_str().unwrap(), "--json"])
-        .output()
-        .unwrap();
+    let output = common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args([
+        "hash",
+        path.to_str().unwrap(),
+        "--json",
+    ]));
     let _ = fs::remove_file(&path);
     assert!(output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -51,7 +53,7 @@ fn hashes_standard_input_with_bounded_reader() {
         .spawn()
         .unwrap();
     child.stdin.take().unwrap().write_all(b"abc").unwrap();
-    let output = child.wait_with_output().unwrap();
+    let output = common::wait_with_timeout(child, std::time::Duration::from_secs(60));
     assert!(output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["path"], "-");
@@ -63,10 +65,7 @@ fn hashes_standard_input_with_bounded_reader() {
 
 #[test]
 fn rejects_directory_input() {
-    let output = Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(["hash", "."])
-        .output()
-        .unwrap();
+    let output = common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args(["hash", "."]));
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("not a regular file"));
 }
@@ -75,10 +74,12 @@ fn rejects_directory_input() {
 fn unsupported_algorithm_has_stable_exit_code() {
     let path = unique_path();
     fs::write(&path, b"abc").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(["hash", path.to_str().unwrap(), "--algorithm", "md5"])
-        .output()
-        .unwrap();
+    let output = common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args([
+        "hash",
+        path.to_str().unwrap(),
+        "--algorithm",
+        "md5",
+    ]));
     let _ = fs::remove_file(&path);
     assert_eq!(output.status.code(), Some(7));
 }
@@ -88,10 +89,9 @@ fn large_file_is_hashed_correctly() {
     let path = unique_path();
     let bytes = vec![0x5au8; 8 * 1024 * 1024];
     fs::write(&path, &bytes).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_seal"))
-        .args(["hash", path.to_str().unwrap()])
-        .output()
-        .unwrap();
+    let output = common::run(
+        Command::new(env!("CARGO_BIN_EXE_seal")).args(["hash", path.to_str().unwrap()]),
+    );
     let _ = fs::remove_file(&path);
     assert!(output.status.success());
     use sha2::Digest;
