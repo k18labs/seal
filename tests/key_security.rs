@@ -208,7 +208,16 @@ for prompt, answer in ((b'Passphrase:', b'first valid passphrase\n'),
             raise SystemExit('timed out reading prompt')
         transcript.extend(os.read(fd, 4096))
     os.write(fd, answer)
-_, status = os.waitpid(pid, 0)
+deadline = time.monotonic() + 15
+while True:
+    waited, status = os.waitpid(pid, os.WNOHANG)
+    if waited == pid:
+        break
+    if time.monotonic() >= deadline:
+        os.kill(pid, 9)
+        os.waitpid(pid, 0)
+        raise SystemExit('timed out waiting for keygen to exit')
+    time.sleep(0.05)
 os.close(fd)
 if not os.WIFEXITED(status):
     raise SystemExit('keygen did not exit normally')
