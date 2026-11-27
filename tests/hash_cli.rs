@@ -68,6 +68,29 @@ fn completion_scripts_cover_bash_zsh_fish_and_powershell_command_tree() {
 }
 
 #[test]
+fn manifest_create_accepts_optional_progress_flag() {
+    let root = unique_path();
+    let output_path = unique_path();
+    fs::create_dir_all(&root).unwrap();
+    let output = common::run(Command::new(env!("CARGO_BIN_EXE_seal")).args([
+        "manifest",
+        "create",
+        root.to_str().unwrap(),
+        "--output",
+        output_path.to_str().unwrap(),
+        "--progress",
+        "--json",
+    ]));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let _ = fs::remove_dir_all(&root);
+    let _ = fs::remove_file(&output_path);
+}
+
+#[test]
 fn hashes_standard_input_with_bounded_reader() {
     use std::io::Write;
     let mut child = Command::new(env!("CARGO_BIN_EXE_seal"))
