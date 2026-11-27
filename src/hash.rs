@@ -83,6 +83,14 @@ pub fn hash_reader_with_size(
     reader: &mut impl Read,
     algorithm: Algorithm,
 ) -> Result<(String, u64), HashError> {
+    hash_reader_with_size_and_progress(reader, algorithm, |_| {})
+}
+
+pub(crate) fn hash_reader_with_size_and_progress(
+    reader: &mut impl Read,
+    algorithm: Algorithm,
+    mut progress: impl FnMut(u64),
+) -> Result<(String, u64), HashError> {
     let mut buffer = [0u8; BUFFER_SIZE];
     let mut size = 0u64;
     match algorithm {
@@ -98,6 +106,7 @@ pub fn hash_reader_with_size(
                     .checked_add(count as u64)
                     .ok_or_else(|| HashError::Io(io::Error::other("input size overflow")))?;
                 hasher.update(&buffer[..count]);
+                progress(size);
             }
             Ok((encode_hex(&hasher.finalize()), size))
         }
@@ -114,6 +123,7 @@ pub fn hash_reader_with_size(
                         .checked_add(count as u64)
                         .ok_or_else(|| HashError::Io(io::Error::other("input size overflow")))?;
                     hasher.update(&buffer[..count]);
+                    progress(size);
                 }
                 Ok((encode_hex(hasher.finalize().as_bytes()), size))
             }

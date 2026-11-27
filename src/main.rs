@@ -3,7 +3,7 @@
 use std::{fs, io::Read, path::PathBuf, process::ExitCode};
 use zeroize::Zeroizing;
 
-use clap::{Parser, Subcommand, error::ErrorKind};
+use clap::{CommandFactory, Parser, Subcommand, error::ErrorKind};
 use serde::Serialize;
 
 #[derive(Parser)]
@@ -80,6 +80,17 @@ enum Command {
         #[command(subcommand)]
         command: ManifestCommand,
     },
+    /// Generate a shell completion script.
+    Completions { shell: CompletionShell },
+}
+
+#[derive(clap::ValueEnum, Clone, Copy)]
+enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+    #[value(name = "powershell")]
+    PowerShell,
 }
 
 #[derive(Subcommand)]
@@ -94,6 +105,9 @@ enum ManifestCommand {
         /// Emit one JSON object on stdout.
         #[arg(long)]
         json: bool,
+        /// Report scan progress to stderr.
+        #[arg(long)]
+        progress: bool,
     },
     /// Inspect a canonical manifest without checking files on disk.
     Inspect {
@@ -143,6 +157,9 @@ enum ManifestCommand {
         /// Emit one JSON object on stdout.
         #[arg(long)]
         json: bool,
+        /// Report scan progress to stderr.
+        #[arg(long)]
+        progress: bool,
     },
 }
 
@@ -162,6 +179,7 @@ enum KeyCommand {
 
 #[derive(Serialize)]
 struct HashOutput {
+    schema_version: u8,
     algorithm: &'static str,
     digest: String,
     path: String,
@@ -258,6 +276,16 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<(), (u8, String)> {
     match cli.command {
+        Command::Completions { shell } => {
+            let shell = match shell {
+                CompletionShell::Bash => clap_complete::aot::Shell::Bash,
+                CompletionShell::Zsh => clap_complete::aot::Shell::Zsh,
+                CompletionShell::Fish => clap_complete::aot::Shell::Fish,
+                CompletionShell::PowerShell => clap_complete::aot::Shell::PowerShell,
+            };
+            clap_complete::generate(shell, &mut Cli::command(), "seal", &mut std::io::stdout());
+            Ok(())
+        }
         Command::Version => {
             println!("seal {}", seal::VERSION);
             Ok(())
@@ -283,6 +311,7 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                 (code, error.to_string())
             })?;
             let output = HashOutput {
+                schema_version: 1,
                 algorithm: algorithm.as_str(),
                 digest,
                 path: path.to_string_lossy().into_owned(),
@@ -415,8 +444,34 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
             }
         },
         Command::Manifest { command } => match command {
-            ManifestCommand::Create { root, output, json } => {
-                let manifest = seal::tree::create_manifest(&root, &output).map_err(tree_error)?;
+            ManifestCommand::Create {
+                root,
+                output,
+                json,
+                progress,
+            } => {
+                let mut last_progress = std::time::Instant::now();
+                let manifest = if progress {
+                    seal::tree::create_manifest_with_progress(&root, &output, |state| {
+                        if last_progress.elapsed() >= std::time::Duration::from_millis(500) {
+                            eprintln!(
+                                "progress: {} files, {} bytes read",
+                                state.files_seen, state.bytes_read
+                            );
+                            last_progress = std::time::Instant::now();
+                        }
+                    })
+                } else {
+                    seal::tree::create_manifest(&root, &output)
+                }
+                .map_err(tree_error)?;
+                if progress {
+                    eprintln!(
+                        "progress complete: {} files, {} bytes read",
+                        manifest.files.len(),
+                        manifest.files.iter().map(|entry| entry.size).sum::<u64>()
+                    );
+                }
                 if json {
                     #[derive(Serialize)]
                     struct Created<'a> {
@@ -543,6 +598,7 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                 signature,
                 public_key,
                 json,
+                progress,
             } => {
                 let outputs_inside = seal::tree::output_is_inside_root(&root, &manifest)
                     .map_err(tree_error)?
@@ -597,7 +653,24 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
                     }
                     Err(error) => return Err(signature_error(error)),
                 };
-                match seal::tree::verify_directory(&root, &manifest_model) {
+                let mut last_progress = std::time::Instant::now();
+                let verification = if progress {
+                    seal::tree::verify_directory_with_progress(&root, &manifest_model, |state| {
+                        if last_progress.elapsed() >= std::time::Duration::from_millis(500) {
+                            eprintln!(
+                                "progress: {} files, {} bytes read",
+                                state.files_seen, state.bytes_read
+                            );
+                            last_progress = std::time::Instant::now();
+                        }
+                    })
+                } else {
+                    seal::tree::verify_directory(&root, &manifest_model)
+                };
+                if progress {
+                    eprintln!("progress complete");
+                }
+                match verification {
                     Ok(report) => {
                         if json {
                             let output = ManifestVerifyOutput {
