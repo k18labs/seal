@@ -37,6 +37,32 @@ fn creates_canonical_sorted_manifest() {
     remove_all([&root, &output_path]);
 }
 
+#[cfg(unix)]
+#[test]
+fn reports_unreadable_file_as_an_operational_failure() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = unique_path("unreadable-root");
+    let output_path = unique_path("unreadable-manifest");
+    fs::create_dir_all(&root).unwrap();
+    let file = root.join("private.dat");
+    fs::write(&file, b"not readable by the test process").unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0)).unwrap();
+
+    let result = run(&[
+        "manifest",
+        "create",
+        root.to_str().unwrap(),
+        "--output",
+        output_path.to_str().unwrap(),
+    ]);
+
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+    assert_eq!(result.status.code(), Some(5), "{}", stderr(&result));
+    assert!(!output_path.exists());
+    remove_all([&root, &output_path]);
+}
+
 #[test]
 fn verifies_empty_directory_and_reports_success_as_json() {
     let root = unique_path("empty-root");

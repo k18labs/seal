@@ -161,6 +161,28 @@ fn rejects_passphrase_file_over_1024_bytes() {
     remove_all([&key, &public, &passphrase_file]);
 }
 
+#[test]
+fn removes_private_key_when_public_key_creation_fails() {
+    let key = unique_path("rollback-key");
+    let public = public_path(&key);
+    let passphrase_file = unique_path("rollback-passphrase");
+    fs::write(&public, b"keep existing public file\n").unwrap();
+    fs::write(&passphrase_file, b"test rollback passphrase\n").unwrap();
+
+    let generated = run(&[
+        "keygen",
+        "--out",
+        key.to_str().unwrap(),
+        "--passphrase-file",
+        passphrase_file.to_str().unwrap(),
+    ]);
+    assert_eq!(generated.status.code(), Some(5));
+    assert!(!key.exists(), "orphaned private key remains after failure");
+    assert_eq!(fs::read(&public).unwrap(), b"keep existing public file\n");
+
+    remove_all([&key, &public, &passphrase_file]);
+}
+
 fn run(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_seal"))
         .args(args)
