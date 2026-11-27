@@ -551,6 +551,109 @@ fn rejects_directory_junctions() {
     remove_all([&root, &target, &output_path]);
 }
 
+#[test]
+fn inspects_canonical_manifest_as_versioned_json() {
+    let root = unique_path("inspect-root");
+    let manifest = unique_path("inspect-manifest");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("note.txt"), b"abc").unwrap();
+    let created = run(&[
+        "manifest",
+        "create",
+        root.to_str().unwrap(),
+        "--output",
+        manifest.to_str().unwrap(),
+    ]);
+    assert!(created.status.success(), "{}", stderr(&created));
+
+    let inspected = run(&[
+        "manifest",
+        "inspect",
+        manifest.to_str().unwrap(),
+        "--json",
+    ]);
+    assert!(inspected.status.success(), "{}", stderr(&inspected));
+    assert!(inspected.stderr.is_empty());
+    let value: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
+    assert_eq!(value["schema_version"], 1);
+    assert_eq!(value["manifest_version"], 1);
+    assert_eq!(value["algorithm"], "sha256");
+    assert_eq!(value["files"], 1);
+    assert_eq!(value["total_bytes"], 3);
+    assert_eq!(value["entries"][0]["path"], "note.txt");
+    assert_eq!(value["entries"][0]["size"], 3);
+    assert_eq!(value["entries"][0]["digest"], "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    remove_all([&root, &manifest]);
+}
+
+#[test]
+fn compares_manifests_with_sorted_added_removed_and_changed_paths() {
+    let left_root = unique_path("compare-left-root");
+    let right_root = unique_path("compare-right-root");
+    let left_manifest = unique_path("compare-left-manifest");
+    let right_manifest = unique_path("compare-right-manifest");
+    fs::create_dir_all(&left_root).unwrap();
+    fs::create_dir_all(&right_root).unwrap();
+    fs::write(left_root.join("a.txt"), b"keep").unwrap();
+    fs::write(left_root.join("b.txt"), b"before").unwrap();
+    fs::write(right_root.join("b.txt"), b"after").unwrap();
+    fs::write(right_root.join("c.txt"), b"new").unwrap();
+    for (root, manifest) in [
+        (&left_root, &left_manifest),
+        (&right_root, &right_manifest),
+    ] {
+        let created = run(&[
+            "manifest",
+            "create",
+            root.to_str().unwrap(),
+            "--output",
+            manifest.to_str().unwrap(),
+        ]);
+        assert!(created.status.success(), "{}", stderr(&created));
+    }
+
+    let compared = run(&[
+        "manifest",
+        "compare",
+        left_manifest.to_str().unwrap(),
+        right_manifest.to_str().unwrap(),
+        "--json",
+    ]);
+    assert!(compared.status.success(), "{}", stderr(&compared));
+    let value: serde_json::Value = serde_json::from_slice(&compared.stdout).unwrap();
+    assert_eq!(value["schema_version"], 1);
+    assert_eq!(value["identical"], false);
+    assert_eq!(value["added"], serde_json::json!(["c.txt"]));
+    assert_eq!(value["removed"], serde_json::json!(["a.txt"]));
+    assert_eq!(value["changed"], serde_json::json!(["b.txt"]));
+    assert_eq!(value["verifies_files_on_disk"], false);
+    remove_all([&left_root, &right_root, &left_manifest, &right_manifest]);
+}
+
+#[test]
+fn inspect_rejects_noncanonical_manifest() {
+    let manifest = unique_path("inspect-invalid-manifest");
+    fs::write(
+        &manifest,
+        br#"{ "version":1,"algorithm":"sha256","files":[]}"#,
+    )
+    .unwrap();
+    let inspected = run(&["manifest", "inspect", manifest.to_str().unwrap()]);
+    assert_eq!(inspected.status.code(), Some(4));
+    assert!(stderr(&inspected).contains("canonical"));
+    remove_all([&manifest]);
+}
+
+#[test]
+fn inspect_rejects_manifest_larger_than_the_documented_limit() {
+    let manifest = unique_path("inspect-oversized-manifest");
+    fs::write(&manifest, vec![b' '; 16 * 1024 * 1024 + 1]).unwrap();
+    let inspected = run(&["manifest", "inspect", manifest.to_str().unwrap()]);
+    assert_eq!(inspected.status.code(), Some(4));
+    assert!(stderr(&inspected).contains("16 MiB"));
+    remove_all([&manifest]);
+}
+
 fn run(args: &[&str]) -> std::process::Output {
     let mut owned: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
     let key_flag = match args.first().copied() {
