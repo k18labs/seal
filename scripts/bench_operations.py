@@ -72,6 +72,11 @@ for name in ("file_verify", "manifest_verify"):
     if name == "file_verify":
         subprocess.run(commands["file_sign"], shell=True, check=True, stdout=subprocess.DEVNULL)
     else:
+        subprocess.run(
+            [binary, "manifest", "create", str(many), "--output", str(many_manifest)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
         subprocess.run(commands["manifest_sign"], shell=True, check=True, stdout=subprocess.DEVNULL)
 
 results = {}
