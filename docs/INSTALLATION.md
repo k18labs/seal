@@ -32,3 +32,23 @@ gh attestation verify seal-x86_64-unknown-linux-gnu.tar.gz \
 ```
 
 Use the archive matching your target in that command. Extract it only after checksum and provenance verification. A checksum detects transfer damage when its expected value is trusted; provenance authenticates build context, not publisher intent or software safety. For signed files or directories, separately obtain the trusted public key fingerprint through an independent channel and follow [key management](KEY_MANAGEMENT.md).
+
+## Clean-machine verification
+
+Use a separate machine or a fresh environment with no Seal release key already installed. Obtain the expected release-key fingerprint from a channel independent of the downloaded archive and its release assets. Do not accept a public key and its expected fingerprint from the same download location.
+
+If the publisher supplies a detached Seal signature for the archive, check the key fingerprint first:
+
+```sh
+seal key fingerprint --public-key ./seal-release-key.pub
+```
+
+Compare the complete `SHA256:` fingerprint with the value from the independent channel. Only after it matches, verify the archive signature:
+
+```sh
+seal verify ./seal-x86_64-unknown-linux-gnu.tar.gz \
+  --signature ./seal-x86_64-unknown-linux-gnu.tar.gz.seal \
+  --public-key ./seal-release-key.pub
+```
+
+Use the archive, signature, and public-key filenames for the selected target. A Seal signature proves that the matching key signed the file; trust in the publisher depends on independently checking that key's fingerprint. A checksum only detects a mismatch against the checksum value you chose to trust. GitHub provenance attestation ties an artifact to a repository and workflow identity; it does not establish publisher intent or that the software is safe. These checks answer different questions. The current release workflow documents checksums and GitHub provenance; do not assume a detached Seal signature is published unless the release actually includes one.

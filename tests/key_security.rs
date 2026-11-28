@@ -187,6 +187,124 @@ fn removes_private_key_when_public_key_creation_fails() {
 
 #[cfg(target_os = "linux")]
 #[test]
+fn rejects_fifo_key_signature_manifest_and_passphrase_inputs_without_blocking() {
+    let private = unique_path("fifo-private-key");
+    let public = public_path(&private);
+    let passphrase = unique_path("fifo-passphrase");
+    let artifact = unique_path("fifo-artifact");
+    let signature = unique_path("fifo-signature");
+    let key_fifo = unique_path("fifo-key");
+    let signature_fifo = unique_path("fifo-signature-input");
+    let manifest_fifo = unique_path("fifo-manifest");
+    let passphrase_fifo = unique_path("fifo-passphrase-input");
+    let passphrase_output = unique_path("fifo-passphrase-output");
+    let _cleanup = CleanupPaths(vec![
+        private.clone(),
+        public.clone(),
+        passphrase.clone(),
+        artifact.clone(),
+        signature.clone(),
+        key_fifo.clone(),
+        signature_fifo.clone(),
+        manifest_fifo.clone(),
+        passphrase_fifo.clone(),
+        passphrase_output.clone(),
+    ]);
+    fs::write(&passphrase, b"test fifo passphrase\n").unwrap();
+    fs::write(&artifact, b"artifact").unwrap();
+
+    let generated = run(&[
+        "keygen",
+        "--out",
+        private.to_str().unwrap(),
+        "--passphrase-file",
+        passphrase.to_str().unwrap(),
+    ]);
+    assert!(generated.status.success(), "{}", stderr(&generated));
+
+    for fifo in [&key_fifo, &signature_fifo, &manifest_fifo, &passphrase_fifo] {
+        let created = Command::new("mkfifo").arg(fifo).status().unwrap();
+        assert!(
+            created.success(),
+            "could not create FIFO at {}",
+            fifo.display()
+        );
+    }
+
+    let key_input = common::output_with_timeout(
+        Command::new(env!("CARGO_BIN_EXE_seal")).args([
+            "sign",
+            artifact.to_str().unwrap(),
+            "--key",
+            key_fifo.to_str().unwrap(),
+            "--output",
+            signature.to_str().unwrap(),
+            "--passphrase-file",
+            passphrase.to_str().unwrap(),
+        ]),
+        std::time::Duration::from_secs(2),
+    );
+    assert_invalid_input(&key_input, "key and signature inputs must be regular files");
+
+    let signature_input = common::output_with_timeout(
+        Command::new(env!("CARGO_BIN_EXE_seal")).args([
+            "verify",
+            artifact.to_str().unwrap(),
+            "--signature",
+            signature_fifo.to_str().unwrap(),
+            "--public-key",
+            public.to_str().unwrap(),
+        ]),
+        std::time::Duration::from_secs(2),
+    );
+    assert_invalid_input(
+        &signature_input,
+        "key and signature inputs must be regular files",
+    );
+
+    let manifest_input = common::output_with_timeout(
+        Command::new(env!("CARGO_BIN_EXE_seal")).args([
+            "manifest",
+            "inspect",
+            manifest_fifo.to_str().unwrap(),
+        ]),
+        std::time::Duration::from_secs(2),
+    );
+    assert_invalid_input(&manifest_input, "input must be a regular file");
+
+    let passphrase_input = common::output_with_timeout(
+        Command::new(env!("CARGO_BIN_EXE_seal")).args([
+            "keygen",
+            "--out",
+            passphrase_output.to_str().unwrap(),
+            "--passphrase-file",
+            passphrase_fifo.to_str().unwrap(),
+        ]),
+        std::time::Duration::from_secs(2),
+    );
+    assert_invalid_input(&passphrase_input, "input must be a regular file");
+}
+
+#[cfg(target_os = "linux")]
+struct CleanupPaths(Vec<PathBuf>);
+
+#[cfg(target_os = "linux")]
+impl Drop for CleanupPaths {
+    fn drop(&mut self) {
+        for path in &self.0 {
+            let _ = fs::remove_file(path);
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn assert_invalid_input(output: &Output, diagnostic: &str) {
+    assert_eq!(output.status.code(), Some(4), "{}", stderr(output));
+    assert!(stderr(output).contains(diagnostic), "{}", stderr(output));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
 fn mismatched_interactive_passphrase_confirmation_fails_without_writing_keys() {
     let key = unique_path("mismatched-prompt-key");
     let public = public_path(&key);

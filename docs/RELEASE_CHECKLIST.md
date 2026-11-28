@@ -3,11 +3,13 @@
 Use this checklist before publishing a production release.
 
 - [ ] Confirm the release version in `Cargo.toml`, `Cargo.lock`, and the annotated tag.
+- [ ] Record the maintainer's go/hold decision for `v1.0.0`, the exact assets being published, and the supported OS/architecture targets.
 - [ ] Review the exact source commit and changelog; ensure the working tree is clean.
 - [ ] Run formatting, locked tests, and clippy; require all supported CI targets to pass.
 - [ ] Build the supported archives and SBOM from the tagged commit.
 - [ ] Verify archive checksums and GitHub artifact attestations from a separate checkout.
 - [ ] Publish the signer public-key fingerprint through an independent channel. Do not treat a key bundled beside the archive as trusted.
+- [ ] Verify checksum, provenance, and any supplied Seal signatures from a clean machine; confirm each trust input comes from the channel documented for that check.
 - [ ] Verify installation and signature examples from a clean machine and document all commands.
 - [ ] Review known limitations, especially the lack of an atomic filesystem snapshot and the absence of a full independent implementation audit.
 - [ ] Confirm release notes describe supported targets and the exact verification procedure.

@@ -1,6 +1,11 @@
 #![forbid(unsafe_code)]
 
-use std::{fs, io::Read, path::PathBuf, process::ExitCode};
+use std::{
+    fs::{self, File, OpenOptions},
+    io::{self, Read},
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 use zeroize::Zeroizing;
 
 use clap::{CommandFactory, Parser, Subcommand, error::ErrorKind};
@@ -778,8 +783,14 @@ fn run(cli: Cli) -> Result<(), (u8, String)> {
 }
 
 fn read_manifest(path: &std::path::Path) -> Result<seal::manifest::Manifest, (u8, String)> {
-    let mut file =
-        fs::File::open(path).map_err(|error| (5, format!("could not open manifest: {error}")))?;
+    let mut file = open_regular_input(path).map_err(|error| {
+        let status = if error.kind() == io::ErrorKind::InvalidInput {
+            4
+        } else {
+            5
+        };
+        (status, format!("could not open manifest: {error}"))
+    })?;
     let metadata = file
         .metadata()
         .map_err(|error| (5, format!("could not inspect manifest: {error}")))?;
@@ -875,7 +886,14 @@ fn load_passphrase(
     confirm: bool,
 ) -> Result<Zeroizing<String>, (u8, String)> {
     let value = if let Some(path) = path {
-        let mut file = fs::File::open(path).map_err(|e| (5, e.to_string()))?;
+        let mut file = open_regular_input(path).map_err(|e| {
+            let status = if e.kind() == io::ErrorKind::InvalidInput {
+                4
+            } else {
+                5
+            };
+            (status, e.to_string())
+        })?;
         let metadata = file.metadata().map_err(|e| (5, e.to_string()))?;
         if !metadata.is_file() || metadata.len() > 1024 {
             return Err((
@@ -922,6 +940,31 @@ fn load_passphrase(
         return Err((4, "passphrase must be 12 to 1024 UTF-8 bytes".into()));
     }
     Ok(value)
+}
+
+fn open_regular_input(path: &Path) -> io::Result<File> {
+    if !fs::metadata(path)?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "input must be a regular file",
+        ));
+    }
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        // Avoid blocking if a special file replaces the path after the metadata check.
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    let file = options.open(path)?;
+    if !file.metadata()?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "input must be a regular file",
+        ));
+    }
+    Ok(file)
 }
 
 fn tree_error(error: seal::tree::TreeError) -> (u8, String) {

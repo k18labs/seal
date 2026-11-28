@@ -15,7 +15,7 @@ The release candidate is not a production release. Publishing `v1.0.0` remains a
 
 ## Next: release and documentation accuracy
 
-- [ ] Decide whether and when to publish production `v1.0.0`; first confirm the release contents, supported targets, and public verification instructions.
+- [ ] Record a maintainer go/hold decision for production `v1.0.0`; confirm the exact release contents, supported targets, and independent trust channels for every published verification method.
 - [x] Refresh the README candidate status to reflect completed RC builds and checks.
 - [x] Reconcile the threat-model wording about qualified format review and broader audits.
 - [x] Make performance records identify the target, release build profile, source revision, run settings, and platform for each binary-size and timing result.

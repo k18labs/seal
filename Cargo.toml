@@ -35,3 +35,6 @@ panic = "abort"
 
 [target."cfg(windows)".dependencies]
 windows-permissions = "0.2.4"
+
+[target."cfg(unix)".dependencies]
+libc = "0.2"

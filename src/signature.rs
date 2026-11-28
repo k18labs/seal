@@ -548,7 +548,19 @@ fn read_private_key(path: &Path, passphrase: &[u8]) -> Result<PrivateKey, Signat
 }
 
 fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, SignatureError> {
-    let file = File::open(path)?;
+    if !fs::metadata(path)?.is_file() {
+        return Err(SignatureError::InvalidInput(
+            "key and signature inputs must be regular files".to_owned(),
+        ));
+    }
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    let file = options.open(path)?;
     let metadata = file.metadata()?;
     if !metadata.is_file() {
         return Err(SignatureError::InvalidInput(
